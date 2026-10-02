@@ -9,6 +9,7 @@ import '../services/deep_link_service.dart';
 import '../services/message_navigation_service.dart';
 import '../widgets/incoming_call_banner.dart';
 import '../services/api_service.dart';
+import '../services/notification_badge_service.dart';
 import 'banned_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,12 +30,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationBadgeService.instance.start();
     _initScreens();
     _checkBanStatus();
-    // Initialize deep link handling and flush pending message notifications after first frame
+    // Initialize deep link handling and flush pending deep links & notifications after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService().initialize();
+      DeepLinkService().flushPendingDeepLink();
       MessageNavigationService.instance.flushPendingNotification();
+      NotificationBadgeService.instance.refresh();
     });
   }
 
@@ -53,17 +57,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    NotificationBadgeService.instance.stop();
     WidgetsBinding.instance.removeObserver(this);
-    DeepLinkService().dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Refresh profile when app resumes
+    // Refresh profile and notification badge when app resumes
     if (state == AppLifecycleState.resumed) {
       _profileKey.currentState?.refreshProfile();
+      NotificationBadgeService.instance.refresh();
     }
   }
 

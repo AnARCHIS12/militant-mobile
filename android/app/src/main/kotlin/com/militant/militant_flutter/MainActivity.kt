@@ -98,6 +98,19 @@ class MainActivity : FlutterActivity() {
                     )
                     result.success(null)
                 }
+                "showNotification" -> {
+                    val id = call.argument<Int>("id") ?: Random.nextInt(100000)
+                    val title = call.argument<String>("title") ?: "Militant"
+                    val body = call.argument<String>("body") ?: ""
+                    val channelId = call.argument<String>("channelId") ?: "messages_v2"
+                    val rawPayload = call.argument<Map<*, *>>("payload")
+                    val payload = rawPayload?.entries?.associate { (k, v) ->
+                        k.toString() to v
+                    } ?: emptyMap()
+
+                    showGeneralNotification(id, title, body, channelId, payload)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -299,6 +312,51 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun showGeneralNotification(
+        notificationId: Int,
+        title: String,
+        body: String,
+        channelId: String,
+        payload: Map<String, Any?>
+    ) {
+        val requestCode = Random.nextInt(100000)
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            for ((key, value) in payload) {
+                when (value) {
+                    is Int -> putExtra(key, value)
+                    is Long -> putExtra(key, value)
+                    is Boolean -> putExtra(key, value)
+                    is Double -> putExtra(key, value)
+                    else -> putExtra(key, value?.toString())
+                }
+            }
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            this,
+            requestCode,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_stat_militant)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+
+        try {
+            NotificationManagerCompat.from(this).notify(notificationId, notification)
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
     private fun launchTrustedWebActivity(url: String) {
         val builder = CustomTabsIntent.Builder()
         val customTabsIntent = builder.build()
@@ -403,30 +461,46 @@ class MainActivity : FlutterActivity() {
 
     private fun extractMessageNotificationPayload(intent: Intent?): HashMap<String, Any?>? {
         val extras = intent?.extras ?: return null
+        val payload = hashMapOf<String, Any?>()
+
+        for (key in extras.keySet()) {
+            val value = extras.get(key)
+            if (value != null) {
+                payload[key] = normalizeIntentValue(value)
+            }
+            if (value is String && (key == "onesignalData" || key == "custom")) {
+                mergeCallPayloadFromJson(value, payload)
+            }
+        }
+
         val senderId = extras.getInt("senderId", -1)
         val groupId = extras.getInt("groupId", -1)
         val isGroup = extras.getBoolean("isGroup", false)
         val conversationName = extras.getString("conversationName")
 
-        if (senderId == -1 && groupId == -1) {
-            return null
-        }
-
-        val payload = hashMapOf<String, Any?>()
-        payload["type"] = if (isGroup) "group_message" else "message"
         if (senderId != -1) {
             payload["sender_id"] = senderId.toString()
         }
         if (groupId != -1) {
             payload["group_id"] = groupId.toString()
         }
+        if (isGroup) {
+            payload["type"] = "group_message"
+        }
         if (!conversationName.isNullOrBlank()) {
             payload["conversationName"] = conversationName
         }
-        val avatar = extras.getString("avatar")
-        if (!avatar.isNullOrBlank()) {
-            payload["avatar"] = avatar
+
+        val hasType = payload.containsKey("type")
+        val hasPost = payload.containsKey("post_id") || payload.containsKey("postId")
+        val hasSender = payload.containsKey("sender_id") || payload.containsKey("senderId") || payload.containsKey("user_id")
+        val hasGroup = payload.containsKey("group_id") || payload.containsKey("groupId")
+        val hasLink = payload.containsKey("link") || payload.containsKey("url")
+
+        if (hasType || hasPost || hasSender || hasGroup || hasLink) {
+            return payload
         }
-        return payload
+
+        return null
     }
 }

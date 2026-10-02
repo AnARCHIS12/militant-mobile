@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'message_navigation_service.dart';
+import 'notification_badge_service.dart';
+import 'ntfy_push_service.dart';
 
 const String _groupCallMessagePrefix = '__militant_group_call__:';
 
@@ -24,48 +26,17 @@ class MessageNotificationService {
     if (_isInitialized) return;
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
-    // Écouter les notifications OneSignal en avant-plan pour les messages
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
-      final data = event.notification.additionalData;
-      if (data == null) {
-        event.notification.display();
-        return;
-      }
-
-      final type = data['type']?.toString();
-      if (type == 'call') {
-        return;
-      }
-
-      final messagePreview = data['message_preview']?.toString().trim() ?? '';
-      final isGroupCallMarker =
-          type == 'group_message' &&
-          messagePreview.startsWith(_groupCallMessagePrefix);
-
-      if (isGroupCallMarker) {
-        event.preventDefault();
-        return;
-      }
-
-      final isHandled = await handleMessagePayload(
-        title: event.notification.title ?? 'Nouveau message',
-        body: event.notification.body ?? '',
-        data: data,
-      );
-
-      if (isHandled) {
-        event.preventDefault(); // Empêcher l'affichage de la notif OneSignal standard
-        return;
-      }
-
-      // Pour les autres notifs (likes, commentaires...) affichage normal
-      event.notification.display();
-    });
+    // Écouter les notifications OneSignal en avant-plan pour les messages (si OneSignal actif)
+    final provider = await NtfyPushService.instance.getSelectedProvider();
+    if (provider == PushProvider.onesignal || provider == PushProvider.both) {
+      enableOneSignalListener();
+    }
 
     // Écouter les événements depuis le canal natif Android
     if (Platform.isAndroid) {
       _channel.setMethodCallHandler((call) async {
-        if (call.method == 'messageNotificationClicked') {
+        if (call.method == 'messageNotificationClicked' ||
+            call.method == 'notificationClicked') {
           final rawPayload = call.arguments;
           if (rawPayload is Map) {
             MessageNavigationService.instance.handlePayload(
@@ -92,6 +63,50 @@ class MessageNotificationService {
     }
 
     _isInitialized = true;
+  }
+
+  /// Initialise l'écouteur OneSignal en avant-plan si activé dynamiquement
+  void enableOneSignalListener() {
+    try {
+      OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
+        final data = event.notification.additionalData;
+        if (data == null) {
+          event.notification.display();
+          return;
+        }
+
+        final type = data['type']?.toString();
+        if (type == 'call') {
+          return;
+        }
+
+        final messagePreview = data['message_preview']?.toString().trim() ?? '';
+        final isGroupCallMarker =
+            type == 'group_message' &&
+            messagePreview.startsWith(_groupCallMessagePrefix);
+
+        if (isGroupCallMarker) {
+          event.preventDefault();
+          return;
+        }
+
+        // Mettre à jour l'indicateur de notifications non lues en haut à droite
+        NotificationBadgeService.instance.increment();
+
+        final isHandled = await handleMessagePayload(
+          title: event.notification.title ?? 'Nouveau message',
+          body: event.notification.body ?? '',
+          data: data,
+        );
+
+        if (isHandled) {
+          event.preventDefault();
+          return;
+        }
+
+        event.notification.display();
+      });
+    } catch (_) {}
   }
 
   /// Traite un payload de message (reçu via OneSignal ou ntfy)
@@ -158,6 +173,27 @@ class MessageNotificationService {
       });
     } catch (e) {
       debugPrint('MessageNotificationService: Erreur affichage notif: $e');
+    }
+  }
+
+  /// Affiche une notification Android générale (commentaires, likes, mentions...)
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+    int? id,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('showNotification', {
+        'id': id ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000),
+        'title': title,
+        'body': body,
+        'channelId': 'messages_v2',
+        'payload': data,
+      });
+    } catch (e) {
+      debugPrint('[MessageNotificationService] Erreur showNotification: $e');
     }
   }
 }

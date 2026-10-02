@@ -7,6 +7,7 @@ import 'chat_screen.dart';
 import 'post_detail_screen.dart';
 import 'group_detail_screen.dart';
 import '../models/post.dart';
+import '../services/notification_badge_service.dart';
 import '../utils/date_formatter.dart';
 import '../utils/error_helper.dart';
 
@@ -156,12 +157,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _handleNotificationTap(dynamic notif) async {
+    final notifId = int.tryParse(notif['id']?.toString() ?? '');
+    final isUnread = notif['is_read'] == 0 ||
+        notif['is_read'] == '0' ||
+        notif['is_read'] == false;
+    if (notifId != null && isUnread) {
+      try {
+        final api = await ApiService.getInstance();
+        api.markNotificationAsRead(notifId);
+        if (mounted) {
+          setState(() {
+            notif['is_read'] = 1;
+          });
+        }
+        NotificationBadgeService.instance.refresh();
+      } catch (_) {}
+    }
+
     final type = notif['type'] ?? 'notification';
     final username = notif['from_username'] ?? notif['username'] ?? 'Militant';
 
     if (type == 'follow' ||
         type == 'friend_request' ||
         type == 'friend_accept') {
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -172,6 +191,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     if (type == 'message' || type == 'message_request') {
+      if (!mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -235,6 +255,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _markAllAsRead() async {
+    final lang = LanguageService.instance;
+    try {
+      final api = await ApiService.getInstance();
+      await api.markAllNotificationsAsRead();
+      if (mounted) {
+        setState(() {
+          for (final n in _notifications) {
+            if (n is Map) n['is_read'] = 1;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(lang.translate('all_marked_read'))),
+        );
+      }
+      NotificationBadgeService.instance.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(getFriendlyErrorMessage(e, lang))),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = LanguageService.instance;
@@ -250,6 +295,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               lang.translate('notifications_title'),
               style: const TextStyle(color: Colors.white),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.done_all, color: Colors.white70),
+                tooltip: lang.translate('mark_all_read'),
+                onPressed: _markAllAsRead,
+              ),
+            ],
           ),
           body: _isLoading
               ? const Center(
@@ -352,12 +404,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         message = rawMessage.isNotEmpty ? rawMessage : lang.translate('notification_generic');
     }
 
+    final isUnread = notif['is_read'] == 0 ||
+        notif['is_read'] == '0' ||
+        notif['is_read'] == false;
+
     return InkWell(
       onTap: () => _handleNotificationTap(notif),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white10)),
+        decoration: BoxDecoration(
+          color: isUnread
+              ? const Color(0xFFBE1E1E).withValues(alpha: 0.08)
+              : Colors.transparent,
+          border: const Border(bottom: BorderSide(color: Colors.white10)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +440,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       children: [
                         TextSpan(
                           text: username,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: isUnread ? FontWeight.w800 : FontWeight.bold,
+                          ),
                         ),
                         TextSpan(text: ' $message'),
                       ],
@@ -390,14 +451,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(createdAt),
-                    style: const TextStyle(
-                      color: Color(0xFF888888),
+                    style: TextStyle(
+                      color: isUnread ? const Color(0xFFBE1E1E) : const Color(0xFF888888),
                       fontSize: 12,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
               ),
             ),
+            if (isUnread) ...[
+              const SizedBox(width: 8),
+              Container(
+                margin: const EdgeInsets.only(top: 6),
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFBE1E1E),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -9,6 +9,7 @@ import '../screens/call_screen.dart';
 import '../screens/group_call_screen.dart';
 import 'api_service.dart';
 import 'call_kit_service.dart';
+import 'ntfy_push_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -38,46 +39,69 @@ class IncomingCallService {
       onEnded: _handleCallEnded,
     );
 
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
-      final data = event.notification.additionalData;
-      if (data == null) {
-        event.notification.display();
-        return;
-      }
-
-      if (_isGroupCallNotification(data) || _isCallNotification(data)) {
-        event.preventDefault();
-        await handleIncomingCallPayload(
-          data,
-          body: event.notification.body,
-          openScreenImmediately: false,
-        );
-      } else {
-        event.notification.display();
-      }
-    });
-
-    OneSignal.Notifications.addClickListener((event) async {
-      final data = event.notification.additionalData;
-      if (data == null) return;
-
-      await handleIncomingCallPayload(
-        data,
-        body: event.notification.body,
-        openScreenImmediately: true,
-      );
-    });
+    final provider = await NtfyPushService.instance.getSelectedProvider();
+    if (provider == PushProvider.onesignal || provider == PushProvider.both) {
+      enableOneSignalListener();
+    }
 
     await _initializeAndroidCallBridge();
 
     _isInitialized = true;
   }
 
-  /// Traite un payload d'appel entrant provenant de OneSignal ou de ntfy
+  bool _oneSignalListenerAdded = false;
+
+  /// Active les écouteurs OneSignal pour les appels si OneSignal est activé
+  void enableOneSignalListener() {
+    if (_oneSignalListenerAdded) return;
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
+    try {
+      OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
+        final data = event.notification.additionalData;
+        if (data == null) {
+          event.notification.display();
+          return;
+        }
+
+        if (_isGroupCallNotification(data) || _isCallNotification(data)) {
+          event.preventDefault();
+          await handleIncomingCallPayload(
+            data,
+            body: event.notification.body,
+            openScreenImmediately: false,
+          );
+        } else {
+          event.notification.display();
+        }
+      });
+
+      OneSignal.Notifications.addClickListener((event) async {
+        final data = event.notification.additionalData;
+        if (data == null) return;
+
+        await handleIncomingCallPayload(
+          data,
+          body: event.notification.body,
+          openScreenImmediately: true,
+        );
+      });
+
+      _oneSignalListenerAdded = true;
+    } catch (e) {
+      print('Erreur lors de l\'enregistrement des écouteurs OneSignal d\'appel: $e');
+    }
+  }
+
+  /// Traite un payload d'appel entrant provenant de OneSignal ou de ntfy.
+  /// [fromNtfy] doit être `true` quand l'appel vient du WebSocket ntfy, pour
+  /// que le dialog s'affiche directement en Flutter (le MethodChannel Android
+  /// natif n'est pas déclenché dans ce cas).
   Future<void> handleIncomingCallPayload(
     Map<String, dynamic> rawData, {
     String? body,
     bool openScreenImmediately = false,
+    bool fromNtfy = false,
   }) async {
     final data = Map<String, dynamic>.from(rawData);
 
@@ -91,6 +115,7 @@ class IncomingCallService {
         _showIncomingGroupCallDialog(
           data: data,
           body: body,
+          fromNtfy: fromNtfy,
         );
       }
       return;
@@ -120,6 +145,7 @@ class IncomingCallService {
       _showIncomingPrivateCallDialog(
         data: hydratedData,
         body: body,
+        fromNtfy: fromNtfy,
       );
     }
   }
@@ -471,10 +497,14 @@ class IncomingCallService {
   Future<void> _showIncomingPrivateCallDialog({
     required Map<String, dynamic> data,
     required String? body,
+    bool fromNtfy = false,
   }) async {
     final hydratedData = await _resolveIncomingCallMetadata(data);
 
-    if (Platform.isAndroid) {
+    // Sur Android avec ntfy, le MethodChannel natif n'est pas déclenché car
+    // ntfy est 100% Flutter (WebSocket) — on utilise donc le dialog Flutter
+    // directement au lieu du CallKit Android natif.
+    if (Platform.isAndroid && !fromNtfy) {
       final callId = _parseCallId(raw: hydratedData['call_id'], fallback: '');
       if (callId.isEmpty || _activeForegroundDialogCallId == callId) return;
       _activeForegroundDialogCallId = callId;
@@ -768,8 +798,11 @@ class IncomingCallService {
   void _showIncomingGroupCallDialog({
     required Map<String, dynamic> data,
     required String? body,
+    bool fromNtfy = false,
   }) {
-    if (Platform.isAndroid) {
+    // Sur Android avec ntfy, on affiche directement le dialog Flutter
+    // (le MethodChannel natif n'est pas déclenché depuis ntfy).
+    if (Platform.isAndroid && !fromNtfy) {
       final callId = _parseCallId(raw: data['call_id'], fallback: '');
       if (callId.isEmpty || _activeForegroundDialogCallId == callId) return;
       _activeForegroundDialogCallId = callId;

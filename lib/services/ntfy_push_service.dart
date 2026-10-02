@@ -4,11 +4,13 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
 import 'incoming_call_service.dart';
 import 'message_notification_service.dart';
+import 'notification_badge_service.dart';
 
 /// Provider de push choisi par l'utilisateur
 enum PushProvider {
@@ -17,8 +19,27 @@ enum PushProvider {
   both,
   none;
 
+  /// Indique si l'application est compilée pour F-Droid (mode 100% libre / dégooglisé)
+  static const bool isFdroidBuild = bool.fromEnvironment(
+    'FDROID_BUILD',
+    defaultValue: false,
+  );
+
+  /// Indique si les services propriétaires (OneSignal / Google Play) sont autorisés
+  static bool get isProprietaryPushSupported => !isFdroidBuild;
+
+  /// Provider par défaut à la compilation (configurable avec --dart-define=DEFAULT_PUSH_PROVIDER=onesignal)
+  static const String compileTimeDefault = String.fromEnvironment(
+    'DEFAULT_PUSH_PROVIDER',
+    defaultValue: 'ntfy',
+  );
+
   static PushProvider fromString(String? value) {
-    switch (value?.toLowerCase().trim()) {
+    if (isFdroidBuild) {
+      return PushProvider.ntfy;
+    }
+    final v = (value == null || value.trim().isEmpty) ? compileTimeDefault : value;
+    switch (v.toLowerCase().trim()) {
       case 'onesignal':
         return PushProvider.onesignal;
       case 'both':
@@ -27,8 +48,10 @@ enum PushProvider {
         return PushProvider.none;
       case 'ntfy':
       default:
-        // Par défaut: ntfy (auto-hébergé, dégooglisé)
-        return PushProvider.ntfy;
+        // Par défaut: ntfy (auto-hébergé, dégooglisé) ou valeur injectée à la compilation
+        return compileTimeDefault == 'onesignal'
+            ? PushProvider.onesignal
+            : PushProvider.ntfy;
     }
   }
 
@@ -67,9 +90,14 @@ class NtfyPushService {
 
   bool get isConnected => _isConnected;
   bool get isRunning => _isRunning;
+  String get serverUrl => _serverUrl;
+  String get topicPrefix => _topicPrefix;
 
   /// Récupère le provider de push configuré (défaut: ntfy)
   Future<PushProvider> getSelectedProvider() async {
+    if (PushProvider.isFdroidBuild) {
+      return PushProvider.ntfy;
+    }
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefKeyProvider);
     return PushProvider.fromString(raw);
@@ -77,8 +105,27 @@ class NtfyPushService {
 
   /// Définit le provider de push
   Future<void> setSelectedProvider(PushProvider provider) async {
+    if (PushProvider.isFdroidBuild) {
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefKeyProvider, provider.key);
+  }
+
+  /// Demande la permission de notification système (Android 13+ POST_NOTIFICATIONS / iOS)
+  Future<bool> requestNotificationPermission() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return true;
+    try {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        final result = await Permission.notification.request();
+        return result.isGranted;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[NtfyPushService] Erreur lors de la demande de permission notifications: $e');
+      return false;
+    }
   }
 
   /// Démarre l'écoute du topic ntfy pour l'utilisateur connecté
@@ -87,6 +134,9 @@ class NtfyPushService {
     String? serverUrl,
     String? topicPrefix,
   }) async {
+    // S'assurer que la permission système Android 13+ / iOS est demandée
+    await requestNotificationPermission();
+
     if (_isRunning && _currentUserId == userId) {
       debugPrint('[NtfyPushService] Déjà en cours d\'écoute pour userId: $userId');
       return;
@@ -121,6 +171,27 @@ class NtfyPushService {
 
     _serverUrl = _serverUrl.replaceAll(RegExp(r'/+$'), '');
     _connectStream();
+  }
+
+  /// Envoie une notification de test directement sur le topic ntfy de l'utilisateur
+  Future<bool> sendTestPing({required int userId, String? customMessage}) async {
+    try {
+      final topic = '$_topicPrefix$userId';
+      final uri = Uri.parse('$_serverUrl/$topic');
+      final res = await http.post(
+        uri,
+        headers: {
+          'Title': 'Militant Test (ntfy)',
+          'Priority': '3',
+          'Tags': 'bell,test',
+        },
+        body: customMessage ?? 'Ceci est une notification de test ntfy reçue en direct ! ✊',
+      );
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (e) {
+      debugPrint('[NtfyPushService] Erreur sendTestPing: $e');
+      return false;
+    }
   }
 
   WebSocket? _webSocket;
@@ -287,6 +358,7 @@ class NtfyPushService {
           data,
           body: message,
           openScreenImmediately: false,
+          fromNtfy: true,
         );
         return;
       }
@@ -302,9 +374,14 @@ class NtfyPushService {
       return;
     }
 
-    // ─── Autres notifications sociales ────────────────────────────────────────
-    // Affichage natif ou géré par l'app
+    // ─── Autres notifications sociales (commentaires, likes, mentions...) ───────
     debugPrint('[NtfyPushService] Notification sociale: $title - $message');
+    NotificationBadgeService.instance.increment();
+    await MessageNotificationService.instance.showNotification(
+      title: title,
+      body: message,
+      data: data,
+    );
   }
 
   /// Planifie une reconnexion automatique avec backoff progressif

@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'ntfy_push_service.dart';
+import 'message_notification_service.dart';
+import 'notification_reply_service.dart';
+import 'incoming_call_service.dart';
 import '../models/feature_suggestion.dart';
 
 class ApiService {
@@ -206,6 +209,8 @@ class ApiService {
     return {};
   }
 
+  static bool _oneSignalInitialized = false;
+
   /// Initialise OneSignal dynamiquement avec l'App ID du serveur
   Future<void> initializeOneSignal() async {
     // Only on supported platforms
@@ -221,6 +226,7 @@ class ApiService {
       try {
         OneSignal.initialize(appId);
         OneSignal.Notifications.requestPermission(true);
+        _oneSignalInitialized = true;
       } catch (e) {
         print('Erreur d\'initialisation OneSignal: $e');
       }
@@ -231,6 +237,9 @@ class ApiService {
   Future<void> initializePushService({dynamic userId}) async {
     final provider = await NtfyPushService.instance.getSelectedProvider();
     print('[ApiService] Initialisation Push avec provider: ${provider.name}');
+
+    // Demander systématiquement la permission Android 13+ (POST_NOTIFICATIONS) / iOS
+    await NtfyPushService.instance.requestNotificationPermission();
 
     final parsedUserId = userId is int
         ? userId
@@ -249,19 +258,29 @@ class ApiService {
     // 2. OneSignal (legacy / stores)
     if (provider == PushProvider.onesignal || provider == PushProvider.both) {
       await initializeOneSignal();
+      MessageNotificationService.instance.enableOneSignalListener();
+      NotificationReplyService.instance.enableOneSignalListener();
+      IncomingCallService.instance.enableOneSignalListener();
       if (parsedUserId != null && parsedUserId > 0) {
         final externalId = oneSignalExternalIdFromUserId(parsedUserId);
         if (externalId.isNotEmpty &&
             !kIsWeb &&
             (Platform.isAndroid || Platform.isIOS)) {
-          print('[ApiService] OneSignal Login avec External ID: $externalId');
-          OneSignal.login(externalId);
+          try {
+            print('[ApiService] OneSignal Login avec External ID: $externalId');
+            OneSignal.login(externalId);
+          } catch (e) {
+            print('[ApiService] Erreur OneSignal login: $e');
+          }
         }
       }
     } else {
-      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      if (!kIsWeb &&
+          (Platform.isAndroid || Platform.isIOS) &&
+          _oneSignalInitialized) {
         try {
-          OneSignal.logout();
+          await OneSignal.logout().catchError((_) {});
+          _oneSignalInitialized = false;
         } catch (_) {}
       }
     }
@@ -399,9 +418,12 @@ class ApiService {
 
     await NtfyPushService.instance.stopListening();
 
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    if (!kIsWeb &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        _oneSignalInitialized) {
       try {
-        OneSignal.logout();
+        await OneSignal.logout().catchError((_) {});
+        _oneSignalInitialized = false;
       } catch (_) {}
     }
   }
@@ -2691,6 +2713,60 @@ class ApiService {
       return data['notifications'] ?? [];
     } else {
       throw Exception('Erreur de chargement des notifications');
+    }
+  }
+
+  Future<int> getUnreadNotificationsCount() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$apiUrl/v1/notifications.php?action=count'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map) {
+          if (data['unread_count'] != null) {
+            return int.tryParse(data['unread_count'].toString()) ?? 0;
+          }
+          // Fallback rétrocompatible : si le serveur retourne la liste standard de notifications
+          if (data['notifications'] is List) {
+            final list = data['notifications'] as List;
+            return list.where((n) {
+              if (n is! Map) return false;
+              final isRead = n['is_read'];
+              return isRead == 0 || isRead == '0' || isRead == false;
+            }).length;
+          }
+        }
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  Future<bool> markAllNotificationsAsRead() async {
+    try {
+      final response = await http.put(
+        Uri.parse('$apiUrl/v1/notifications.php'),
+        headers: _headers,
+        body: jsonEncode({'mark_all': true}),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> markNotificationAsRead(int notificationId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$apiUrl/v1/notifications.php?id=$notificationId'),
+        headers: _headers,
+        body: jsonEncode({}),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 

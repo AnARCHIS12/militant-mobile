@@ -71,32 +71,10 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/group_detail.php"/>
+                    android:host="militant.revlibertaire.com"/>
                 <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/group/"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/profile.php"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/profile/"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/post_detail.php"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/post.php"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"
-                    android:pathPrefix="/post/"/>
+                    android:scheme="http"
+                    android:host="militant.revlibertaire.com"/>
             </intent-filter>
             
             <!-- Custom URL scheme -->
@@ -132,23 +110,13 @@
                 android:value="300" />
             <meta-data
                 android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
-                android:value="com.militant.militant_flutter.fileprovider" />
-            
-            <!-- Intent filter to handle links to the domain -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data
-                    android:scheme="https"
-                    android:host="militant.revlibertaire.com"/>
-            </intent-filter>
+                android:value="${applicationId}.fileprovider" />
         </activity>
         
         <!-- FileProvider for splash screen -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.militant.militant_flutter.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:grantUriPermissions="true"
             android:exported="false">
             <meta-data

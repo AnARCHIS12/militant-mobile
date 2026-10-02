@@ -9,6 +9,7 @@ import 'create_post_screen.dart';
 import 'search_screen.dart';
 import 'notifications_screen.dart';
 import 'messages_screen.dart';
+import '../services/notification_badge_service.dart';
 
 const _feedInterestStorageKey = 'feed_interests';
 
@@ -28,6 +29,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    NotificationBadgeService.instance.refresh();
   }
 
   @override
@@ -69,14 +71,26 @@ class _HomeFeedScreenState extends State<HomeFeedScreen>
                   );
                 },
               ),
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsScreen(),
+              ValueListenableBuilder<int>(
+                valueListenable: NotificationBadgeService.instance.unreadCount,
+                builder: (context, count, _) {
+                  return IconButton(
+                    icon: Badge.count(
+                      count: count,
+                      isLabelVisible: count > 0,
+                      backgroundColor: const Color(0xFFBE1E1E),
+                      textColor: Colors.white,
+                      child: const Icon(Icons.notifications),
                     ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                      NotificationBadgeService.instance.refresh();
+                    },
                   );
                 },
               ),

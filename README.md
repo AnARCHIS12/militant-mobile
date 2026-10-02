@@ -36,6 +36,17 @@ Version actuelle : **1.0.9+133**
 
 ## Nouveautés 1.0.9
 
+- **Notifications Push Dégooglisées (ntfy) & Double Diffusion** :
+  - Support complet d'un serveur de notifications push auto-hébergé et dégooglisé via [ntfy](https://ntfy.sh/) (`push.revlibertaire.com`).
+  - Connexion temps réel WebSocket / flux HTTP persistant sans dépendance aux Google Play Services ou Firebase.
+  - Sélecteur de fournisseur dans les Paramètres : **ntfy**, **OneSignal** ou **les deux en simultané** (double diffusion).
+  - Prise en charge des appels entrants audio & vidéo avec ntfy : ouverture directe de l'écran d'appel au clic sur "Répondre".
+  - Demande proactive de permission Android 13+ (`POST_NOTIFICATIONS`) dès l'initialisation et au changement de préférences.
+- **Variantes F-Droid (Libre) & Google Play Store** :
+  - **Édition F-Droid** (`FDROID_BUILD=true`) : 100% libre et dégooglisée, services Firebase désactivés, paramètres épurés sans options propriétaires.
+  - **Édition Play Store** (`FDROID_BUILD=false`) : intégration OneSignal (Google FCM) pour distribution Play Store.
+  - Coexistence des deux versions possible sur le même appareil de test grâce à un `applicationId` distinct (`.fdroid`).
+  - Scripts de compilation automatisés dans le dossier `scripts/` (`build_fdroid.sh` et `build_playstore.sh`).
 - **Fediverse & Profil** :
   - Remplacement de l'adresse email sur le profil par l'identifiant Fediverse complet (ex: `@pseudo@militant.revlibertaire.com`).
   - Clic rapide sur le handle Fediverse pour le copier directement dans le presse-papier avec confirmation.
@@ -82,8 +93,9 @@ Version actuelle : **1.0.9+133**
 - **Badges militants** : Système de badges exclusif à l'app mobile (Militant, Antifa, Anarchiste, CNT-AIT, CNT-F, CNT-SO, FA, OCL, CGA, UCL, FLL, SLM, IWA-AIT, IWW, IAF-IFA, CNT-AIT-E, ULET-AIT)
 
 ### Communication
-- **Messages privés** : Conversations individuelles et groupes
-- **Notifications** : Système de notifications en temps réel
+- **Messages privés** : Conversations individuelles et groupes en temps réel
+- **Notifications Push Dégooglisées** : Système d'alertes via serveur ntfy souverain auto-hébergé (sans compte Google ni trackers) ou OneSignal
+- **Appels WebRTC** : Appels audio et vidéo chiffrés de pair à pair avec notification d'appel entrant et réponse directe
 - **Mentions** : Mentionnez d'autres utilisateurs avec @
 - **Liens cliquables** : Détection automatique des URLs avec cartes de prévisualisation pour les réseaux sociaux
 
@@ -288,21 +300,71 @@ militant_flutter/
 - `share_plus` : Partage de contenu
 - `intl` : Internationalisation et formatage de dates
 
-## Build de production
+## Compilation & Build de production
 
-### Android
+L'application supporte deux modes de compilation distincts selon la cible de distribution :
+
+### 1. Version F-Droid / Autonome (100% Libre & Dégooglisée)
+
+Cette version est exempte de trackers et de dépendances aux services propriétaires Google :
+- **Push par défaut** : `ntfy` via WebSocket persistant sur votre serveur auto-hébergé (`push.revlibertaire.com`).
+- **Services Google / Firebase** : désactivés au niveau Gradle.
+- **Paramètres** : interface épurée masquant les options propriétaires, tout en conservant la configuration granulaire des alertes.
 
 ```bash
-# Générer un APK signé
-flutter build apk --release
+# Compilation via le script automatisé :
+./scripts/build_fdroid.sh
 
-# Générer un App Bundle (recommandé pour Play Store)
-flutter build appbundle --release
-
-# Sorties 1.0.9 générées localement
-build/app/outputs/flutter-apk/app-release.apk
-build/app/outputs/bundle/release/militant-1.0.9-playstore.aab
+# Ou via la commande Flutter directe :
+flutter build apk --release \
+  --dart-define=DEFAULT_PUSH_PROVIDER=ntfy \
+  --dart-define=FDROID_BUILD=true
 ```
+L'APK prêt à distribuer est généré dans `dist/militant-fdroid.apk`.
+
+### 2. Version Google Play Store
+
+Cette version intègre les services Google Play et OneSignal pour une distribution standard sur le Play Store :
+- **Push par défaut** : OneSignal (Google FCM) avec possibilité pour l'utilisateur de basculer sur ntfy ou double diffusion.
+- **Format de publication** : Android App Bundle (`.aab`) requis par la Google Play Console.
+
+```bash
+# Compilation via le script automatisé (génère .aab et .apk) :
+./scripts/build_playstore.sh
+
+# Ou via les commandes Flutter directes :
+# Pour la Play Console (App Bundle) :
+flutter build appbundle --release \
+  --dart-define=DEFAULT_PUSH_PROVIDER=onesignal \
+  --dart-define=FDROID_BUILD=false
+
+# Pour tester en APK local :
+flutter build apk --release \
+  --dart-define=DEFAULT_PUSH_PROVIDER=onesignal \
+  --dart-define=FDROID_BUILD=false
+```
+Les fichiers sont générés dans :
+- `dist/militant-playstore.aab` (à téléverser sur la Google Play Console)
+- `dist/militant-playstore.apk` (pour test direct)
+
+---
+
+### Tester les deux versions côte à côte sur le même appareil
+
+Pour tester simultanément la version Play Store et la version F-Droid sans conflit d'installation :
+- **Play Store** utilise le package standard : `com.militant.militant_flutter`
+- **F-Droid** utilise le suffixe dédié : `com.militant.militant_flutter.fdroid`
+
+```bash
+# Installer la version F-Droid sur votre appareil connecté
+adb install dist/militant-fdroid-debug.apk
+
+# Installer la version Play Store sur le même appareil
+adb install dist/militant-playstore-debug.apk
+```
+Les deux applications apparaîtront séparément sur l'écran d'accueil de votre téléphone.
+
+---
 
 ## Performance & Scalabilité
 
@@ -316,11 +378,13 @@ L'application et l'API sont optimisées pour supporter un grand nombre d'utilisa
 ## Déploiement
 
 ### Google Play Store
+1. Créer ou ouvrir la console Google Play.
+2. Téléverser le fichier `dist/militant-playstore.aab`.
+3. Remplir les fiches de version et valider le déploiement.
 
-1. Créer un compte développeur Google Play
-2. Générer une clé de signature
-3. Build l'App Bundle : `flutter build appbundle --release`
-4. Uploader sur Play Console
+### F-Droid / Dépôt tiers
+1. Téléverser l'APK `dist/militant-fdroid.apk` sur votre serveur web ou repository F-Droid.
+2. Signer le fichier avec votre keystore officiel.
 
 ## Contribution
 

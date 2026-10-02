@@ -1,19 +1,38 @@
+import java.util.Properties
+import java.io.FileInputStream
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
 }
-
-import java.util.Properties
-import java.io.FileInputStream
 
 // Load keystore properties
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+// Lire le dart-define FDROID_BUILD injecté par `flutter build/run --dart-define=FDROID_BUILD=true`
+// pour différencier l'applicationId des deux variantes (coexistence sur le même appareil de test).
+fun dartDefine(name: String, default: String = ""): String {
+    val encoded = project.findProperty("dart-defines") as String? ?: return default
+    return encoded.split(",")
+        .mapNotNull { runCatching { String(Base64.getDecoder().decode(it)) }.getOrNull() }
+        .firstOrNull { it.startsWith("$name=") }
+        ?.removePrefix("$name=")
+        ?: default
+}
+val isFdroidBuild = dartDefine("FDROID_BUILD") == "true"
+val appIdSuffix   = if (isFdroidBuild) ".fdroid" else ""
+
+// Le plugin google-services (Firebase/OneSignal) n'est utile que pour la version Play Store.
+// La version F-Droid utilise uniquement ntfy et n'a pas de firebase.
+if (!isFdroidBuild) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -32,8 +51,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.militant.militant_flutter"
+        // applicationId varie selon la variante :
+        //   Play Store → com.militant.militant_flutter
+        //   F-Droid    → com.militant.militant_flutter.fdroid
+        applicationId = "com.militant.militant_flutter$appIdSuffix"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

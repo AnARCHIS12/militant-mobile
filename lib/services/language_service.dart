@@ -89,6 +89,8 @@ class LanguageService extends ValueNotifier<Locale> {
       'test_notifications': 'Tester les notifications',
       'test_notifications_desc': 'Envoyer une notification de test maintenant',
       'notification_test_sent': 'Test envoyé ! Vérifiez vos notifications.',
+      'mark_all_read': 'Tout marquer comme lu',
+      'all_marked_read': 'Toutes les notifications sont marquées comme lues',
       'friends_title': 'Amis',
       'friend_requests': 'Demandes',
       'accept': 'Accepter',
@@ -374,6 +376,16 @@ class LanguageService extends ValueNotifier<Locale> {
       // Notifications Settings
       'notifications_push': 'Notifications push',
       'notifications_push_subtitle': 'Sur cet appareil',
+      'notifications_provider_title': 'Fournisseur de notifications',
+      'notifications_provider_ntfy': 'ntfy (Auto-hébergé, Dégooglisé)',
+      'notifications_provider_ntfy_subtitle':
+          'Serveur souverain push.revlibertaire.com (Recommandé)',
+      'notifications_provider_onesignal': 'OneSignal (Google / Apple)',
+      'notifications_provider_onesignal_subtitle':
+          'Utilise les services propriétaires Google Play & Apple APNs',
+      'notifications_provider_both': 'Double diffusion (ntfy + OneSignal)',
+      'notifications_provider_both_subtitle':
+          'Écoute les deux systèmes en parallèle',
       'notifications_email': 'E-mails',
       'notifications_email_subtitle': 'Recevoir des résumés par mail',
       'notifications_likes': 'J\'aime',
@@ -1060,6 +1072,8 @@ class LanguageService extends ValueNotifier<Locale> {
       'test_notifications': 'Test Notifications',
       'test_notifications_desc': 'Send a test push notification now',
       'notification_test_sent': 'Test sent! Check your notifications.',
+      'mark_all_read': 'Mark all as read',
+      'all_marked_read': 'All notifications marked as read',
       'friends_title': 'Friends',
       'friend_requests': 'Requests',
       'accept': 'Accept',
@@ -1339,6 +1353,16 @@ class LanguageService extends ValueNotifier<Locale> {
       // Notifications Settings
       'notifications_push': 'Push notifications',
       'notifications_push_subtitle': 'On this device',
+      'notifications_provider_title': 'Notification Provider',
+      'notifications_provider_ntfy': 'ntfy (Self-hosted, DeGoogled)',
+      'notifications_provider_ntfy_subtitle':
+          'Sovereign push.revlibertaire.com server (Recommended)',
+      'notifications_provider_onesignal': 'OneSignal (Google / Apple)',
+      'notifications_provider_onesignal_subtitle':
+          'Uses proprietary Google Play & Apple APNs services',
+      'notifications_provider_both': 'Dual delivery (ntfy + OneSignal)',
+      'notifications_provider_both_subtitle':
+          'Listens to both systems in parallel',
       'notifications_email': 'Emails',
       'notifications_email_subtitle': 'Receive email summaries',
       'notifications_likes': 'Likes',
@@ -2012,6 +2036,8 @@ class LanguageService extends ValueNotifier<Locale> {
       'test_notifications': 'Probar notificaciones',
       'test_notifications_desc': 'Enviar una notificación de prueba ahora',
       'notification_test_sent': '¡Prueba enviada! Revisa tus notificaciones.',
+      'mark_all_read': 'Marcar todo como leído',
+      'all_marked_read': 'Todas las notificaciones marcadas como leídas',
       'friends_title': 'Amigos',
       'friend_requests': 'Solicit.',
       'accept': 'Aceptar',
@@ -2297,6 +2323,16 @@ class LanguageService extends ValueNotifier<Locale> {
       // Notifications Settings
       'notifications_push': 'Notificaciones push',
       'notifications_push_subtitle': 'En este dispositivo',
+      'notifications_provider_title': 'Proveedor de notificaciones',
+      'notifications_provider_ntfy': 'ntfy (Autohospedado, Desgooglizado)',
+      'notifications_provider_ntfy_subtitle':
+          'Servidor soberano push.revlibertaire.com (Recomendado)',
+      'notifications_provider_onesignal': 'OneSignal (Google / Apple)',
+      'notifications_provider_onesignal_subtitle':
+          'Utiliza servicios propietarios de Google Play y Apple APNs',
+      'notifications_provider_both': 'Doble difusión (ntfy + OneSignal)',
+      'notifications_provider_both_subtitle':
+          'Escucha ambos sistemas en paralelo',
       'notifications_email': 'Correos electrónicos',
       'notifications_email_subtitle': 'Recibir resúmenes por correo',
       'notifications_likes': 'Me gusta',

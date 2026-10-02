@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'api_service.dart';
 import 'message_navigation_service.dart';
+import 'ntfy_push_service.dart';
 
 const String _groupCallMessagePrefix = '__militant_group_call__:';
 
@@ -20,10 +21,21 @@ class NotificationReplyService {
     if (_isInitialized) return;
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
-    // Écouter les clics sur les notifications
-    OneSignal.Notifications.addClickListener(_handleNotificationClick);
+    final provider = await NtfyPushService.instance.getSelectedProvider();
+    if (provider == PushProvider.onesignal || provider == PushProvider.both) {
+      try {
+        OneSignal.Notifications.addClickListener(_handleNotificationClick);
+      } catch (_) {}
+    }
 
     _isInitialized = true;
+  }
+
+  /// Initialise l'écouteur OneSignal si activé dynamiquement
+  void enableOneSignalListener() {
+    try {
+      OneSignal.Notifications.addClickListener(_handleNotificationClick);
+    } catch (_) {}
   }
 
   void _handleNotificationClick(OSNotificationClickEvent event) {
@@ -33,8 +45,8 @@ class NotificationReplyService {
     final type = data['type']?.toString();
     final messagePreview = data['message_preview']?.toString().trim() ?? '';
 
-    // Ne traiter que les messages privés et de groupe
-    if (type != 'message' && type != 'group_message') return;
+    // Ne pas intercepter les appels entrants (déjà gérés par IncomingCallService)
+    if (type == 'call') return;
     if (type == 'group_message' &&
         messagePreview.startsWith(_groupCallMessagePrefix)) {
       return;

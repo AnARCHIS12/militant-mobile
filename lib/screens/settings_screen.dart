@@ -802,8 +802,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final api = await ApiService.getInstance();
       await api.updatePreferences({key: value});
 
-      // Si le push est activé, initialiser le provider sélectionné
+      // Si le push est activé, demander la permission et initialiser le provider sélectionné
       if (key == 'notifications_push' && value == true) {
+        await NtfyPushService.instance.requestNotificationPermission();
         await api.initializePushService();
       } else if (key == 'notifications_push' && value == false) {
         await NtfyPushService.instance.stopListening();
@@ -852,6 +853,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _updatePushProvider(PushProvider provider) async {
     setState(() => _pushProvider = provider);
     await NtfyPushService.instance.setSelectedProvider(provider);
+    await NtfyPushService.instance.requestNotificationPermission();
     final api = await ApiService.getInstance();
     await api.initializePushService();
     if (mounted) {
@@ -891,58 +893,80 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   (v) => _updatePreference('notifications_push', v),
                 ),
                 if (_pushEnabled) ...[
-                  _buildSectionHeader('Fournisseur de notifications'),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RadioListTile<PushProvider>(
-                            title: const Text('ntfy (Auto-hébergé, Dégooglisé)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                            subtitle: const Text('Serveur souverain push.revlibertaire.com (Recommandé)', style: TextStyle(fontSize: 12)),
-                            value: PushProvider.ntfy,
-                            activeColor: const Color(0xFFBE1E1E),
-                            groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          const Divider(height: 1),
-                          RadioListTile<PushProvider>(
-                            title: const Text('OneSignal (Google / Apple)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                            subtitle: const Text('Utilise les services propriétaires Google Play & Apple APNs', style: TextStyle(fontSize: 12)),
-                            value: PushProvider.onesignal,
-                            activeColor: const Color(0xFFBE1E1E),
-                            groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          const Divider(height: 1),
-                          RadioListTile<PushProvider>(
-                            title: const Text('Double diffusion (ntfy + OneSignal)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                            subtitle: const Text('Écoute les deux systèmes en parallèle', style: TextStyle(fontSize: 12)),
-                            value: PushProvider.both,
-                            activeColor: const Color(0xFFBE1E1E),
-                            groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
+                  if (PushProvider.isProprietaryPushSupported) ...[
+                    _buildSectionHeader(
+                      lang.translate('notifications_provider_title'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RadioListTile<PushProvider>(
+                              title: Text(
+                                lang.translate('notifications_provider_ntfy'),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                lang.translate('notifications_provider_ntfy_subtitle'),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: PushProvider.ntfy,
+                              activeColor: const Color(0xFFBE1E1E),
+                              groupValue: _pushProvider,
+                              onChanged: (v) {
+                                if (v != null) _updatePushProvider(v);
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            const Divider(height: 1),
+                            RadioListTile<PushProvider>(
+                              title: Text(
+                                lang.translate('notifications_provider_onesignal'),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                lang.translate('notifications_provider_onesignal_subtitle'),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: PushProvider.onesignal,
+                              activeColor: const Color(0xFFBE1E1E),
+                              groupValue: _pushProvider,
+                              onChanged: (v) {
+                                if (v != null) _updatePushProvider(v);
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            const Divider(height: 1),
+                            RadioListTile<PushProvider>(
+                              title: Text(
+                                lang.translate('notifications_provider_both'),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                lang.translate('notifications_provider_both_subtitle'),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: PushProvider.both,
+                              activeColor: const Color(0xFFBE1E1E),
+                              groupValue: _pushProvider,
+                              onChanged: (v) {
+                                if (v != null) _updatePushProvider(v);
+                              },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   _buildSectionHeader(
                     lang.translate('notifications_interactions_title'),
                   ),
@@ -1003,8 +1027,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _testNotifications() async {
     final lang = LanguageService.instance;
     try {
+      await NtfyPushService.instance.requestNotificationPermission();
       final api = await ApiService.getInstance();
-      await api.post('/v1/notifications.php?action=test', {});
+      await api.post('/v1/notifications.php?action=test', {
+        'provider': _pushProvider.key,
+      });
+
+      // Si le provider sélectionné est ntfy ou both, déclencher aussi le ping ntfy direct
+      if (_pushProvider == PushProvider.ntfy ||
+          _pushProvider == PushProvider.both) {
+        final userId = await api.getCurrentUserId();
+        if (userId != null && userId > 0) {
+          await NtfyPushService.instance.sendTestPing(userId: userId);
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

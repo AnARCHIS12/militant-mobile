@@ -109,56 +109,66 @@ class IncomingCallController {
 
     _isListening = true;
 
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      final data = event.notification.additionalData;
-      if (data == null) {
-        event.notification.display();
-        return;
-      }
+    try {
+      OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+        final data = event.notification.additionalData;
+        if (data == null) {
+          event.notification.display();
+          return;
+        }
 
-      final type = data['type']?.toString();
-      if (type != 'call') {
-        event.notification.display();
-        return;
-      }
+        final type = data['type']?.toString();
+        if (type != 'call') {
+          event.notification.display();
+          return;
+        }
 
-      // Appel entrant — on supprime la notification système et on affiche la bannière
-      event.preventDefault();
+        // Appel entrant — on supprime la notification système et on affiche la bannière
+        event.preventDefault();
 
-      final callId = data['call_id']?.toString() ?? '';
+        final callId = data['call_id']?.toString() ?? '';
 
-      final callerId = int.tryParse(data['caller_id']?.toString() ?? '') ?? 0;
-      final callerName =
-          _payloadString(data, const ['caller_name', 'callerName']) ??
-          event.notification.body ??
-          'Appel entrant';
+        final callerId = int.tryParse(data['caller_id']?.toString() ?? '') ?? 0;
+        final callerName =
+            _payloadString(data, const ['caller_name', 'callerName']) ??
+            event.notification.body ??
+            'Appel entrant';
 
-      final isVideo =
-          _payloadString(data, const ['call_type', 'callType']) == 'video' ||
-          _payloadBool(data, const ['is_video', 'isVideo']);
-      final isGroup =
-          _payloadBool(data, const ['is_group_call', 'isGroupCall']) ||
-          _payloadString(data, const ['group_id', 'groupId']) != null;
-      final groupId = int.tryParse(data['group_id']?.toString() ?? '');
-      final offerSdp = _payloadOfferSdp(data);
+        final isVideo =
+            _payloadString(data, const ['call_type', 'callType']) == 'video' ||
+            _payloadBool(data, const ['is_video', 'isVideo']);
+        final isGroup =
+            _payloadBool(data, const ['is_group_call', 'isGroupCall']) ||
+            _payloadString(data, const ['group_id', 'groupId']) != null;
+        final groupId = int.tryParse(data['group_id']?.toString() ?? '');
+        final offerSdp = _payloadOfferSdp(data);
 
-      if (callId.isNotEmpty) {
-        _emitIncomingCall(
-          IncomingCallData(
-            callId: callId,
-            callerId: callerId,
-            callerName: callerName,
-            callerAvatar: _payloadAvatar(data),
-            isVideo: isVideo,
-            isGroup: isGroup,
-            groupId: groupId,
-            offerSdp: offerSdp,
-          ),
-        );
-      }
-    });
+        if (callId.isNotEmpty) {
+          _emitIncomingCall(
+            IncomingCallData(
+              callId: callId,
+              callerId: callerId,
+              callerName: callerName,
+              callerAvatar: _payloadAvatar(data),
+              isVideo: isVideo,
+              isGroup: isGroup,
+              groupId: groupId,
+              offerSdp: offerSdp,
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      print('[IncomingCallBanner] Erreur OneSignal listener: $e');
+    }
 
     _startFallbackPolling();
+  }
+
+  void stopListening() {
+    _fallbackPollTimer?.cancel();
+    _fallbackPollTimer = null;
+    _isListening = false;
   }
 
   void _emitIncomingCall(IncomingCallData call) {

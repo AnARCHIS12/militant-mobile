@@ -14,6 +14,7 @@ import 'services/incoming_call_service.dart';
 import 'services/message_notification_service.dart';
 import 'services/notification_reply_service.dart';
 import 'services/message_navigation_service.dart';
+import 'services/deep_link_service.dart';
 import 'services/user_status_service.dart';
 import 'widgets/incoming_call_banner.dart';
 
@@ -22,6 +23,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  DeepLinkService().initialize();
 
   // Edge-to-Edge System UI Mode for Android 15+ (API 35+)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -34,7 +36,9 @@ void main() async {
 
   // Initialize OneSignal Debugging only on supported platforms
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    try {
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    } catch (_) {}
   }
 
   // FVP is useful for desktop playback, but Android already has a native
@@ -220,6 +224,7 @@ class _SplashScreenState extends State<SplashScreen>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           IncomingCallService.instance.flushPendingAndroidIncomingIntent();
           MessageNavigationService.instance.flushPendingNotification();
+          DeepLinkService().flushPendingDeepLink();
         });
       } else {
         print(

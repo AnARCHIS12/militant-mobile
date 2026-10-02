@@ -54,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _pollTimer;
   Timer? _typingPollTimer;
   Timer? _typingIdleTimer;
+  Timer? _callEndTimer;
   DateTime? _lastTypingHeartbeatAt;
   List<Map<String, dynamic>> _typingUsers = [];
   int _autoDeleteTime = 0;
@@ -76,7 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _callEndSub = IncomingCallController.instance.stream.listen((event) {
       if (event == null && mounted) {
         // null = appel terminé/rejeté — recharger après 1s (laisse le temps au serveur)
-        Future.delayed(const Duration(seconds: 1), () {
+        _callEndTimer?.cancel();
+        _callEndTimer = Timer(const Duration(seconds: 1), () {
           if (mounted) _loadMessages();
         });
       }
@@ -1931,6 +1933,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _pollTimer?.cancel();
     _typingPollTimer?.cancel();
     _typingIdleTimer?.cancel();
+    _callEndTimer?.cancel();
     unawaited(_setTyping(false, force: true));
     _callEndSub?.cancel();
     _messageController.removeListener(_handleMessageChanged);
