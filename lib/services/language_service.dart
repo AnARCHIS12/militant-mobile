@@ -387,7 +387,7 @@ class LanguageService extends ValueNotifier<Locale> {
       'notifications_provider_both_subtitle':
           'Écoute les deux systèmes en parallèle',
       'notifications_email': 'E-mails',
-      'notifications_email_subtitle': 'Recevoir des résumés par mail',
+      'notifications_email_subtitle': 'Recevoir les notifications par e-mail',
       'notifications_likes': 'J\'aime',
       'notifications_likes_subtitle': 'Quand quelqu\'un aime vos posts',
       'notifications_comments': 'Commentaires',
@@ -1364,7 +1364,7 @@ class LanguageService extends ValueNotifier<Locale> {
       'notifications_provider_both_subtitle':
           'Listens to both systems in parallel',
       'notifications_email': 'Emails',
-      'notifications_email_subtitle': 'Receive email summaries',
+      'notifications_email_subtitle': 'Receive notifications by email',
       'notifications_likes': 'Likes',
       'notifications_likes_subtitle': 'When someone likes your posts',
       'notifications_comments': 'Comments',
@@ -2334,7 +2334,8 @@ class LanguageService extends ValueNotifier<Locale> {
       'notifications_provider_both_subtitle':
           'Escucha ambos sistemas en paralelo',
       'notifications_email': 'Correos electrónicos',
-      'notifications_email_subtitle': 'Recibir resúmenes por correo',
+      'notifications_email_subtitle':
+          'Recibir notificaciones por correo electrónico',
       'notifications_likes': 'Me gusta',
       'notifications_likes_subtitle':
           'Cuando a alguien le gusta tu publicación',

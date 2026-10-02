@@ -718,7 +718,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // Default values
   bool _pushEnabled = true;
   PushProvider _pushProvider = PushProvider.ntfy;
-  // bool _emailEnabled = false; // Removed
+  bool _emailEnabled = false;
   bool _likes = true;
   bool _comments = true;
   bool _messages = true;
@@ -743,7 +743,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           _pushEnabled = _toBool(prefs['notifications_push'], true);
           _pushProvider = provider;
-          // _emailEnabled = _toBool(prefs['notifications_email'], false);
+          _emailEnabled = _toBool(
+            prefs['notifications_email'] ?? prefs['email_notifications'],
+            false,
+          );
           _likes = _toBool(prefs['notifications_likes'], true);
           _comments = _toBool(prefs['notifications_comments'], true);
           _messages = _toBool(prefs['notifications_messages'], true);
@@ -783,6 +786,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() {
       if (key == 'notifications_push') {
         _pushEnabled = value;
+      } else if (key == 'notifications_email') {
+        _emailEnabled = value;
       } else if (key == 'notifications_likes') {
         _likes = value;
       } else if (key == 'notifications_comments') {
@@ -827,6 +832,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           if (key == 'notifications_push') {
             _pushEnabled = !value;
+          } else if (key == 'notifications_email') {
+            _emailEnabled = !value;
           } else if (key == 'notifications_likes')
             _likes = !value;
           else if (key == 'notifications_comments')
@@ -892,122 +899,126 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   _pushEnabled,
                   (v) => _updatePreference('notifications_push', v),
                 ),
-                if (_pushEnabled) ...[
-                  if (PushProvider.isProprietaryPushSupported) ...[
-                    _buildSectionHeader(
-                      lang.translate('notifications_provider_title'),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            RadioListTile<PushProvider>(
-                              title: Text(
-                                lang.translate('notifications_provider_ntfy'),
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                lang.translate('notifications_provider_ntfy_subtitle'),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              value: PushProvider.ntfy,
-                              activeColor: const Color(0xFFBE1E1E),
-                              groupValue: _pushProvider,
-                              onChanged: (v) {
-                                if (v != null) _updatePushProvider(v);
-                              },
-                              contentPadding: EdgeInsets.zero,
+                _buildSwitch(
+                  lang.translate('notifications_email'),
+                  lang.translate('notifications_email_subtitle'),
+                  _emailEnabled,
+                  (v) => _updatePreference('notifications_email', v),
+                ),
+                if (_pushEnabled && PushProvider.isProprietaryPushSupported) ...[
+                  _buildSectionHeader(
+                    lang.translate('notifications_provider_title'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RadioListTile<PushProvider>(
+                            title: Text(
+                              lang.translate('notifications_provider_ntfy'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                             ),
-                            const Divider(height: 1),
-                            RadioListTile<PushProvider>(
-                              title: Text(
-                                lang.translate('notifications_provider_onesignal'),
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                lang.translate('notifications_provider_onesignal_subtitle'),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              value: PushProvider.onesignal,
-                              activeColor: const Color(0xFFBE1E1E),
-                              groupValue: _pushProvider,
-                              onChanged: (v) {
-                                if (v != null) _updatePushProvider(v);
-                              },
-                              contentPadding: EdgeInsets.zero,
+                            subtitle: Text(
+                              lang.translate('notifications_provider_ntfy_subtitle'),
+                              style: const TextStyle(fontSize: 12),
                             ),
-                            const Divider(height: 1),
-                            RadioListTile<PushProvider>(
-                              title: Text(
-                                lang.translate('notifications_provider_both'),
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                lang.translate('notifications_provider_both_subtitle'),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              value: PushProvider.both,
-                              activeColor: const Color(0xFFBE1E1E),
-                              groupValue: _pushProvider,
-                              onChanged: (v) {
-                                if (v != null) _updatePushProvider(v);
-                              },
-                              contentPadding: EdgeInsets.zero,
+                            value: PushProvider.ntfy,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<PushProvider>(
+                            title: Text(
+                              lang.translate('notifications_provider_onesignal'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                             ),
-                          ],
-                        ),
+                            subtitle: Text(
+                              lang.translate('notifications_provider_onesignal_subtitle'),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            value: PushProvider.onesignal,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<PushProvider>(
+                            title: Text(
+                              lang.translate('notifications_provider_both'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              lang.translate('notifications_provider_both_subtitle'),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            value: PushProvider.both,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                  _buildSectionHeader(
-                    lang.translate('notifications_interactions_title'),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_likes'),
-                    lang.translate('notifications_likes_subtitle'),
-                    _likes,
-                    (v) => _updatePreference('notifications_likes', v),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_comments'),
-                    lang.translate('notifications_comments_subtitle'),
-                    _comments,
-                    (v) => _updatePreference('notifications_comments', v),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_messages'),
-                    lang.translate('notifications_messages_subtitle'),
-                    _messages,
-                    (v) => _updatePreference('notifications_messages', v),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_friend_requests'),
-                    lang.translate('notifications_friend_requests_subtitle'),
-                    _friendRequests,
-                    (v) =>
-                        _updatePreference('notifications_friend_requests', v),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_follows'),
-                    lang.translate('notifications_follows_subtitle'),
-                    _follows,
-                    (v) => _updatePreference('notifications_follows', v),
-                  ),
-                  _buildSwitch(
-                    lang.translate('notifications_mentions'),
-                    lang.translate('notifications_mentions_subtitle'),
-                    _mentions,
-                    (v) => _updatePreference('notifications_mentions', v),
                   ),
                 ],
+                _buildSectionHeader(
+                  lang.translate('notifications_interactions_title'),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_likes'),
+                  lang.translate('notifications_likes_subtitle'),
+                  _likes,
+                  (v) => _updatePreference('notifications_likes', v),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_comments'),
+                  lang.translate('notifications_comments_subtitle'),
+                  _comments,
+                  (v) => _updatePreference('notifications_comments', v),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_messages'),
+                  lang.translate('notifications_messages_subtitle'),
+                  _messages,
+                  (v) => _updatePreference('notifications_messages', v),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_friend_requests'),
+                  lang.translate('notifications_friend_requests_subtitle'),
+                  _friendRequests,
+                  (v) =>
+                      _updatePreference('notifications_friend_requests', v),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_follows'),
+                  lang.translate('notifications_follows_subtitle'),
+                  _follows,
+                  (v) => _updatePreference('notifications_follows', v),
+                ),
+                _buildSwitch(
+                  lang.translate('notifications_mentions'),
+                  lang.translate('notifications_mentions_subtitle'),
+                  _mentions,
+                  (v) => _updatePreference('notifications_mentions', v),
+                ),
                 const Divider(),
                 ListTile(
                   leading: const Icon(
