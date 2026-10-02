@@ -31,11 +31,16 @@
 
 Militant est un réseau social décentralisé conçu pour les mouvements militants et les organisations politiques. Cette application mobile permet de se connecter à n'importe quelle instance Militant auto-hébergée.
 
-Version actuelle : **1.0.9+133**
+Version actuelle : **1.0.9+134**
 
 
 ## Nouveautés 1.0.9
 
+- **Gestion des Notifications par E-mail & Contrôle des Interactions (Build 134)** :
+  - **Interrupteur d'e-mails dédié** : Réintégration du commutateur dans les Paramètres > Notifications pour activer ou désactiver les alertes par e-mail directement depuis l'application mobile.
+  - **Respect strict des préférences d'interactions** : La désactivation de « J'aime » (ou commentaires, messages...) empêche désormais l'envoi indésirable d'e-mails ou de notifications push pour chaque like.
+  - **Synchronisation bidirectionnelle** : Alignement automatique des préférences de notifications entre l'application mobile et le profil web.
+  - **Accessibilité continue des interactions** : Les paramètres fins d'interactions restent visibles et configurables même si le push principal est désactivé.
 - **Notifications Push Dégooglisées (ntfy) & Double Diffusion** :
   - Support complet d'un serveur de notifications push auto-hébergé et dégooglisé via [ntfy](https://ntfy.sh/) (`push.revlibertaire.com`).
   - Connexion temps réel WebSocket / flux HTTP persistant sans dépendance aux Google Play Services ou Firebase.
@@ -62,7 +67,7 @@ Version actuelle : **1.0.9+133**
 - **Conformité & Performances Android 15** :
   - Prise en charge native du bord-à-bord Android 15 (`Edge-to-Edge`) et nettoyage des API système dépréciées.
   - Optimisations R8 (fullMode) et réduction de taille des ressources (`resource shrinking`).
-  - Version applicative synchronisée sur `1.0.9` (code de version 133).
+  - Version applicative synchronisée sur `1.0.9` (code de version 134).
 
 ## Nouveautés 1.0.8
 
