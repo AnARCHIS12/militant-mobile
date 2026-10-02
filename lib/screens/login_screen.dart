@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +8,6 @@ import '../services/language_service.dart';
 import '../services/message_notification_service.dart';
 import '../services/notification_reply_service.dart';
 import '../services/message_navigation_service.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 import '../utils/error_helper.dart';
@@ -101,21 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _openHomeAfterAuth(ApiService api, int? loggedUserId) async {
     try {
-      await api.initializeOneSignal();
-
-      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        if (loggedUserId != null) {
-          final externalId = ApiService.oneSignalExternalIdFromUserId(
-            loggedUserId,
-          );
-          if (externalId.isNotEmpty) {
-            print('OneSignal Login with External ID: $externalId');
-            OneSignal.login(externalId);
-          }
-        }
-      }
+      await api.initializePushService(userId: loggedUserId);
     } catch (e) {
-      print('OneSignal dynamic init error: $e');
+      print('Erreur init push provider: $e');
     }
 
     try {

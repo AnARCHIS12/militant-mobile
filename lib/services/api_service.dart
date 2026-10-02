@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'ntfy_push_service.dart';
 import '../models/feature_suggestion.dart';
 
 class ApiService {
@@ -226,6 +227,46 @@ class ApiService {
     }
   }
 
+  /// Initialise le système de push selon le provider configuré (ntfy par défaut, ou OneSignal)
+  Future<void> initializePushService({dynamic userId}) async {
+    final provider = await NtfyPushService.instance.getSelectedProvider();
+    print('[ApiService] Initialisation Push avec provider: ${provider.name}');
+
+    final parsedUserId = userId is int
+        ? userId
+        : (userId != null ? int.tryParse(userId.toString()) : null) ??
+            await getCurrentUserId();
+
+    // 1. ntfy (auto-hébergé dégooglisé)
+    if (provider == PushProvider.ntfy || provider == PushProvider.both) {
+      if (parsedUserId != null && parsedUserId > 0) {
+        await NtfyPushService.instance.startListening(userId: parsedUserId);
+      }
+    } else {
+      await NtfyPushService.instance.stopListening();
+    }
+
+    // 2. OneSignal (legacy / stores)
+    if (provider == PushProvider.onesignal || provider == PushProvider.both) {
+      await initializeOneSignal();
+      if (parsedUserId != null && parsedUserId > 0) {
+        final externalId = oneSignalExternalIdFromUserId(parsedUserId);
+        if (externalId.isNotEmpty &&
+            !kIsWeb &&
+            (Platform.isAndroid || Platform.isIOS)) {
+          print('[ApiService] OneSignal Login avec External ID: $externalId');
+          OneSignal.login(externalId);
+        }
+      }
+    } else {
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          OneSignal.logout();
+        } catch (_) {}
+      }
+    }
+  }
+
   static String? resolveImageUrl(String? rawPath, {String? baseUrl}) {
     if (rawPath == null) return null;
 
@@ -355,6 +396,8 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('api_token');
     await prefs.remove('user_id');
+
+    await NtfyPushService.instance.stopListening();
 
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {

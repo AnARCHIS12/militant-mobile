@@ -190,36 +190,28 @@ class _SplashScreenState extends State<SplashScreen>
           '=== SPLASH: Token et URL présents, navigation vers HomeScreen ===',
         );
 
-        // Initialiser OneSignal, appels entrants, messages et bannière
+        // Initialiser push (ntfy par défaut ou OneSignal), appels entrants, messages et bannière
         try {
           final api = await ApiService.getInstance();
-          await api.initializeOneSignal();
           await IncomingCallService.instance.initialize();
           await MessageNotificationService.instance.initialize();
           await NotificationReplyService.instance.initialize();
           await UserStatusService.instance.load();
           // Démarrer le listener global d'appels — la bannière apparaît dans tous les chats
           IncomingCallController.instance.startListening();
-          // Login to OneSignal with cached user ID, or recover it from profile if needed
-          if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-            var userId = prefs.getInt('user_id');
-            userId ??= await api.getCurrentUserId();
-            if (userId != null) {
-              await prefs.setInt('user_id', userId);
-            }
 
-            final externalId = ApiService.oneSignalExternalIdFromUserId(userId);
-            if (externalId.isNotEmpty) {
-              print(
-                '=== SPLASH: OneSignal Login with External ID: $externalId ===',
-              );
-              OneSignal.login(externalId);
-            }
+          var userId = prefs.getInt('user_id');
+          userId ??= await api.getCurrentUserId();
+          if (userId != null) {
+            await prefs.setInt('user_id', userId);
           }
 
-          print('=== SPLASH: OneSignal + appels entrants initialises ===');
+          // Initialisation du provider de push configuré (ntfy par défaut)
+          await api.initializePushService(userId: userId);
+
+          print('=== SPLASH: Notifications + appels entrants initialises ===');
         } catch (e) {
-          print('=== SPLASH: Erreur init OneSignal/appels entrants: $e ===');
+          print('=== SPLASH: Erreur init push/appels entrants: $e ===');
         }
 
         Navigator.of(context).pushReplacement(

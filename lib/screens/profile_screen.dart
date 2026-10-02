@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/account_switcher_service.dart';
@@ -23,7 +20,6 @@ import 'settings_screen.dart';
 import 'users_list_screen.dart';
 import 'friends_screen.dart';
 import '../services/language_service.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/linkable_text.dart';
 import 'chat_screen.dart';
@@ -374,15 +370,7 @@ class ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _openHomeAfterAccountSwitch(ApiService api, int? userId) async {
     try {
-      await api.initializeOneSignal();
-      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        if (userId != null) {
-          final externalId = ApiService.oneSignalExternalIdFromUserId(userId);
-          if (externalId.isNotEmpty) {
-            OneSignal.login(externalId);
-          }
-        }
-      }
+      await api.initializePushService(userId: userId);
     } catch (_) {}
 
     try {

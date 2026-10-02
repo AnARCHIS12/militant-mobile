@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/api_service.dart';
+import '../services/ntfy_push_service.dart';
 import '../services/theme_manager.dart';
 import '../services/language_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -716,6 +717,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // Default values
   bool _pushEnabled = true;
+  PushProvider _pushProvider = PushProvider.ntfy;
   // bool _emailEnabled = false; // Removed
   bool _likes = true;
   bool _comments = true;
@@ -735,10 +737,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final api = await ApiService.getInstance();
       final prefs = await api.getPreferences();
+      final provider = await NtfyPushService.instance.getSelectedProvider();
 
       if (mounted) {
         setState(() {
           _pushEnabled = _toBool(prefs['notifications_push'], true);
+          _pushProvider = provider;
           // _emailEnabled = _toBool(prefs['notifications_email'], false);
           _likes = _toBool(prefs['notifications_likes'], true);
           _comments = _toBool(prefs['notifications_comments'], true);
@@ -798,9 +802,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final api = await ApiService.getInstance();
       await api.updatePreferences({key: value});
 
-      // If push is enabled, ensure OneSignal is initialized/permission requested
+      // Si le push est activé, initialiser le provider sélectionné
       if (key == 'notifications_push' && value == true) {
-        await api.initializeOneSignal();
+        await api.initializePushService();
+      } else if (key == 'notifications_push' && value == false) {
+        await NtfyPushService.instance.stopListening();
       }
 
       if (mounted) {
@@ -843,6 +849,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _updatePushProvider(PushProvider provider) async {
+    setState(() => _pushProvider = provider);
+    await NtfyPushService.instance.setSelectedProvider(provider);
+    final api = await ApiService.getInstance();
+    await api.initializePushService();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.instance.translate('settings_updated'),
+          ),
+          duration: const Duration(seconds: 1),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -867,6 +891,58 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   (v) => _updatePreference('notifications_push', v),
                 ),
                 if (_pushEnabled) ...[
+                  _buildSectionHeader('Fournisseur de notifications'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RadioListTile<PushProvider>(
+                            title: const Text('ntfy (Auto-hébergé, Dégooglisé)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            subtitle: const Text('Serveur souverain push.revlibertaire.com (Recommandé)', style: TextStyle(fontSize: 12)),
+                            value: PushProvider.ntfy,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<PushProvider>(
+                            title: const Text('OneSignal (Google / Apple)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            subtitle: const Text('Utilise les services propriétaires Google Play & Apple APNs', style: TextStyle(fontSize: 12)),
+                            value: PushProvider.onesignal,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          const Divider(height: 1),
+                          RadioListTile<PushProvider>(
+                            title: const Text('Double diffusion (ntfy + OneSignal)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            subtitle: const Text('Écoute les deux systèmes en parallèle', style: TextStyle(fontSize: 12)),
+                            value: PushProvider.both,
+                            activeColor: const Color(0xFFBE1E1E),
+                            groupValue: _pushProvider,
+                            onChanged: (v) {
+                              if (v != null) _updatePushProvider(v);
+                            },
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   _buildSectionHeader(
                     lang.translate('notifications_interactions_title'),
                   ),

@@ -25,7 +25,7 @@ class MessageNotificationService {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
     // Écouter les notifications OneSignal en avant-plan pour les messages
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
       final data = event.notification.additionalData;
       if (data == null) {
         event.notification.display();
@@ -47,15 +47,14 @@ class MessageNotificationService {
         return;
       }
 
-      // Pour les messages, on affiche notre propre notification avec le bouton Répondre
-      if (type == 'message' || type == 'group_message') {
-        event
-            .preventDefault(); // Empêcher l'affichage de la notif OneSignal standard
-        _showReplyableNotification(
-          title: event.notification.title ?? 'Nouveau message',
-          body: event.notification.body ?? '',
-          data: data,
-        );
+      final isHandled = await handleMessagePayload(
+        title: event.notification.title ?? 'Nouveau message',
+        body: event.notification.body ?? '',
+        data: data,
+      );
+
+      if (isHandled) {
+        event.preventDefault(); // Empêcher l'affichage de la notif OneSignal standard
         return;
       }
 
@@ -93,6 +92,34 @@ class MessageNotificationService {
     }
 
     _isInitialized = true;
+  }
+
+  /// Traite un payload de message (reçu via OneSignal ou ntfy)
+  Future<bool> handleMessagePayload({
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    final type = data['type']?.toString();
+    if (type == 'call') return false;
+
+    final messagePreview = data['message_preview']?.toString().trim() ?? '';
+    final isGroupCallMarker =
+        type == 'group_message' &&
+        messagePreview.startsWith(_groupCallMessagePrefix);
+
+    if (isGroupCallMarker) return false;
+
+    if (type == 'message' || type == 'group_message') {
+      await _showReplyableNotification(
+        title: title,
+        body: body,
+        data: data,
+      );
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> _showReplyableNotification({

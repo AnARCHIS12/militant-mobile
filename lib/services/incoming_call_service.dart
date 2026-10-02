@@ -40,48 +40,66 @@ class IncomingCallService {
 
     OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
       final data = event.notification.additionalData;
-
-      if (_isGroupCallNotification(data)) {
-        event.preventDefault();
-        _showIncomingGroupCallDialog(
-          data: data!,
-          body: event.notification.body,
-        );
-        return;
-      }
-
-      // ─── Appel 1-to-1 classique ──────────────────────────────────────────
-      if (!_isCallNotification(data)) {
+      if (data == null) {
         event.notification.display();
         return;
       }
 
-      event.preventDefault();
-      final hydratedData = await _resolveIncomingCallMetadata(data!);
-      _showIncomingPrivateCallDialog(
-        data: hydratedData,
-        body: event.notification.body,
-      );
+      if (_isGroupCallNotification(data) || _isCallNotification(data)) {
+        event.preventDefault();
+        await handleIncomingCallPayload(
+          data,
+          body: event.notification.body,
+          openScreenImmediately: false,
+        );
+      } else {
+        event.notification.display();
+      }
     });
 
     OneSignal.Notifications.addClickListener((event) async {
       final data = event.notification.additionalData;
+      if (data == null) return;
 
-      if (_isGroupCallNotification(data)) {
+      await handleIncomingCallPayload(
+        data,
+        body: event.notification.body,
+        openScreenImmediately: true,
+      );
+    });
+
+    await _initializeAndroidCallBridge();
+
+    _isInitialized = true;
+  }
+
+  /// Traite un payload d'appel entrant provenant de OneSignal ou de ntfy
+  Future<void> handleIncomingCallPayload(
+    Map<String, dynamic> rawData, {
+    String? body,
+    bool openScreenImmediately = false,
+  }) async {
+    final data = Map<String, dynamic>.from(rawData);
+
+    if (_isGroupCallNotification(data)) {
+      if (openScreenImmediately) {
         _openIncomingGroupCallScreen(
-          data: data!,
-          callerName: event.notification.body ?? 'Appel de groupe',
+          data: data,
+          callerName: body ?? 'Appel de groupe',
         );
-        return;
+      } else {
+        _showIncomingGroupCallDialog(
+          data: data,
+          body: body,
+        );
       }
+      return;
+    }
 
-      // ─── Clic sur un appel 1-to-1 classique ─────────────────────────────
-      if (!_isCallNotification(data)) return;
+    if (!_isCallNotification(data)) return;
 
-      final hydratedData = data == null
-          ? <String, dynamic>{}
-          : await _resolveIncomingCallMetadata(data);
-
+    final hydratedData = await _resolveIncomingCallMetadata(data);
+    if (openScreenImmediately) {
       _openIncomingCallScreen(
         callId: _parseCallId(
           raw: hydratedData['call_id'],
@@ -91,18 +109,19 @@ class IncomingCallService {
         callerName:
             _callerNameFromPayload(
               hydratedData,
-              fallback: event.notification.body ?? 'Appel entrant',
+              fallback: body ?? 'Appel entrant',
             ) ??
             'Appel entrant',
         callerAvatar: _avatarFromPayload(hydratedData),
         isVideo: _isVideoCall(hydratedData),
         offerSdp: _offerSdpFromPayload(hydratedData),
       );
-    });
-
-    await _initializeAndroidCallBridge();
-
-    _isInitialized = true;
+    } else {
+      _showIncomingPrivateCallDialog(
+        data: hydratedData,
+        body: body,
+      );
+    }
   }
 
   // ─── Détection du type de notification ────────────────────────────────────
