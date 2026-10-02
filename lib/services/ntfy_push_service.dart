@@ -129,7 +129,7 @@ class NtfyPushService {
     _cleanupClient();
 
     final topic = '$_topicPrefix$_currentUserId';
-    final streamUri = Uri.parse('$_serverUrl/$topic/json?since=now');
+    final streamUri = Uri.parse('$_serverUrl/$topic/json');
 
     debugPrint('[NtfyPushService] Connexion au flux ntfy: $streamUri');
 
