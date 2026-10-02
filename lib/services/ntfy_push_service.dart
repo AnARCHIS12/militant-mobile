@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -122,16 +123,64 @@ class NtfyPushService {
     _connectStream();
   }
 
-  /// Établit la connexion HTTP streaming vers ntfy
+  WebSocket? _webSocket;
+
+  /// Établit la connexion temps réel vers ntfy (WebSocket prioritaire, repli HTTP stream)
   void _connectStream() {
     if (!_isRunning || _currentUserId == null) return;
 
     _cleanupClient();
 
     final topic = '$_topicPrefix$_currentUserId';
-    final streamUri = Uri.parse('$_serverUrl/$topic/json');
 
-    debugPrint('[NtfyPushService] Connexion au flux ntfy: $streamUri');
+    // 1. Tenter la connexion WebSocket prioritaire (wss://.../ws)
+    final wsUrl = _serverUrl.startsWith('https://')
+        ? '${_serverUrl.replaceFirst('https://', 'wss://')}/$topic/ws'
+        : '${_serverUrl.replaceFirst('http://', 'ws://')}/$topic/ws';
+
+    debugPrint('[NtfyPushService] Connexion WebSocket ntfy: $wsUrl');
+
+    if (!kIsWeb) {
+      WebSocket.connect(wsUrl).then((ws) {
+        if (!_isRunning) {
+          ws.close();
+          return;
+        }
+
+        _webSocket = ws;
+        _isConnected = true;
+        _retryAttempt = 0;
+        debugPrint('[NtfyPushService] ✅ Connecté en WebSocket temps réel ($topic)');
+
+        _streamSub = ws
+            .map((e) => e.toString())
+            .listen(
+              (line) => _handleStreamLine(line),
+              onError: (e) {
+                debugPrint('[NtfyPushService] Erreur WebSocket: $e');
+                _scheduleReconnect();
+              },
+              onDone: () {
+                debugPrint('[NtfyPushService] WebSocket fermé');
+                _scheduleReconnect();
+              },
+              cancelOnError: true,
+            );
+      }).catchError((e) {
+        debugPrint('[NtfyPushService] Échec WebSocket ($e), bascule sur flux HTTP stream...');
+        _connectHttpStream(topic);
+      });
+    } else {
+      _connectHttpStream(topic);
+    }
+  }
+
+  /// Repli sur flux HTTP stream persistant (/json)
+  void _connectHttpStream(String topic) {
+    if (!_isRunning || _currentUserId == null) return;
+
+    final streamUri = Uri.parse('$_serverUrl/$topic/json');
+    debugPrint('[NtfyPushService] Connexion au flux HTTP stream: $streamUri');
 
     _client = http.Client();
     final request = http.Request('GET', streamUri);
@@ -150,7 +199,7 @@ class NtfyPushService {
 
           _isConnected = true;
           _retryAttempt = 0;
-          debugPrint('[NtfyPushService] Connecté avec succès au flux ntfy ($topic)');
+          debugPrint('[NtfyPushService] Connecté avec succès au flux HTTP ntfy ($topic)');
 
           _streamSub = response.stream
               .transform(utf8.decoder)
@@ -158,11 +207,11 @@ class NtfyPushService {
               .listen(
                 (line) => _handleStreamLine(line),
                 onError: (e) {
-                  debugPrint('[NtfyPushService] Erreur dans le flux: $e');
+                  debugPrint('[NtfyPushService] Erreur dans le flux HTTP: $e');
                   _scheduleReconnect();
                 },
                 onDone: () {
-                  debugPrint('[NtfyPushService] Flux fermé par le serveur');
+                  debugPrint('[NtfyPushService] Flux HTTP fermé');
                   _scheduleReconnect();
                 },
                 cancelOnError: true,
@@ -277,10 +326,14 @@ class NtfyPushService {
     });
   }
 
-  /// Nettoie les ressources du client
+  /// Nettoie les ressources du client (WebSocket et HTTP)
   void _cleanupClient() {
     _streamSub?.cancel();
     _streamSub = null;
+    try {
+      _webSocket?.close();
+    } catch (_) {}
+    _webSocket = null;
     _client?.close();
     _client = null;
     _isConnected = false;
