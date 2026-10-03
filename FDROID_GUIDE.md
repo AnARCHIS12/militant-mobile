@@ -60,7 +60,7 @@ Categories:
   - Social
 License: GPL-3.0-or-later
 AuthorName: Militant
-WebSite: https://joinmilitant.com
+WebSite: https://joinmilitant.revlibertaire.com
 SourceCode: https://gitlab.com/militant1/militant-flutter
 IssueTracker: https://gitlab.com/militant1/militant-flutter/-/issues
 Changelog: https://gitlab.com/militant1/militant-flutter/-/blob/main/CHANGELOG.md
