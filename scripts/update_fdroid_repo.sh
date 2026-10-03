@@ -17,17 +17,22 @@ echo "📌 Version code détecté : $VERSION_CODE"
 
 FDROID_DIR="/home/anar/Bureau/joinmilitant/fdroid"
 REPO_DIR="$FDROID_DIR/repo"
+APP_ID="com.militant.militant_flutter"
+APP_METADATA_DIR="$FDROID_DIR/metadata/$APP_ID"
 
 mkdir -p "$REPO_DIR"
 
 # 3. Copier l'APK vers le dépôt F-Droid
-APK_TARGET="$REPO_DIR/com.militant.militant_flutter_${VERSION_CODE}.apk"
+APK_TARGET="$REPO_DIR/${APP_ID}_${VERSION_CODE}.apk"
 echo "📂 Copie de l'APK vers $APK_TARGET..."
 cp dist/militant-fdroid.apk "$APK_TARGET"
 
-# 4. Copier les métadonnées et l'icône si nécessaire
+# 4. Copier les métadonnées, l'icône, la bannière et les captures
 mkdir -p "$REPO_DIR/icons"
-cp assets/icon-512.png "$REPO_DIR/icons/com.militant.militant_flutter.${VERSION_CODE}.png" 2>/dev/null || true
+mkdir -p "$APP_METADATA_DIR"
+cp metadata/com.militant.militant_flutter.yml "$FDROID_DIR/metadata/${APP_ID}.yml"
+cp -a fastlane/metadata/android/. "$APP_METADATA_DIR/"
+cp assets/icon-512.png "$REPO_DIR/icons/${APP_ID}.${VERSION_CODE}.png" 2>/dev/null || true
 cp assets/icon-512.png "$REPO_DIR/icons/icon.png" 2>/dev/null || true
 # fdroidserver cherche repo_icon (icon.png) à la racine du dépôt, sinon il génère un placeholder
 cp assets/icon-512.png "$FDROID_DIR/icon.png" 2>/dev/null || true
