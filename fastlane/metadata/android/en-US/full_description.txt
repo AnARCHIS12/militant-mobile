@@ -1,0 +1,14 @@
+Militant is the decentralized social network built for activists, grassroots groups, unions, and engaged citizens.
+
+Take back control of your communication with a free, open platform—free of algorithmic manipulation, advertisements, and tracking.
+
+Key Features:
+• Real-time chronological feed: Never miss an update from your comrades.
+• Communities and Groups: Organize and join local or thematic action groups.
+• Secure Instant Messaging: Chat in direct messages or group discussions with confidence.
+• Fediverse & ActivityPub: Connect seamlessly with the broader decentralized network.
+• Free Push Notifications (ntfy): Real-time alerts powered by self-hosted, de-Googled push.
+• Media Sharing: Share photos, videos, and documents without algorithmic suppression.
+• Activist Events: Coordinate and join local mobilizations and collective actions.
+
+100% Free and Open Source software for liberated communication.

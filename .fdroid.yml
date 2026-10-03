@@ -1,0 +1,60 @@
+# F-Droid build recipe configuration for Militant
+# Repository: https://gitlab.com/militant1/militant-flutter
+
+Categories:
+  - Internet
+  - Social
+License: GPL-3.0-or-later
+AuthorName: Militant
+WebSite: https://joinmilitant.com
+SourceCode: https://gitlab.com/militant1/militant-flutter
+IssueTracker: https://gitlab.com/militant1/militant-flutter/-/issues
+Changelog: https://gitlab.com/militant1/militant-flutter/-/blob/main/CHANGELOG.md
+
+AutoName: Militant
+Summary: Le réseau social militant décentralisé, autonome et sans publicité.
+Description: |-
+  Militant est le réseau social décentralisé conçu pour les activistes, collectifs,
+  syndicats et citoyens engagés.
+
+  Reprenez le contrôle de vos échanges avec une plateforme libre, sans algorithme
+  d'enfermement, sans publicité et respectueuse de votre vie privée.
+
+  Fonctionnalités principales :
+  • Fil d'actualité chronologique et direct
+  • Communautés et groupes d'action
+  • Messagerie instantanée sécurisée
+  • Intégration Fediverse / ActivityPub
+  • Notifications libres via ntfy (dégooglisé)
+  • Partage multimédia sans censure algorithmique
+  • Agenda et événements militants
+
+RepoType: git
+Repo: https://gitlab.com/militant1/militant-flutter.git
+
+Builds:
+  - versionName: 1.0.9
+    versionCode: 136
+    commit: 546a02824cfc96cf0224b7a1c6a6552bbcf55928
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@stable
+    rm:
+      - ios
+      - linux
+      - macos
+      - web
+      - windows
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - .flutter/bin/flutter config --no-analytics
+      - .flutter/bin/flutter pub get
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - .flutter/bin/flutter build apk --release --dart-define=DEFAULT_PUSH_PROVIDER=ntfy --dart-define=FDROID_BUILD=true
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
+CurrentVersion: 1.0.9
+CurrentVersionCode: 136

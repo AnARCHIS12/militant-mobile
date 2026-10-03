@@ -1,0 +1,3 @@
+- Notifications push fiabilisées et badge de notifications non lues.
+- Amélioration de la fluidité et du chargement des flux.
+- Corrections de stabilité et optimisations générales.

@@ -1,0 +1,14 @@
+Militant es la red social descentralizada diseñada para activistas, colectivos, sindicatos y ciudadanía comprometida.
+
+Recupera el control de tus comunicaciones con una plataforma libre, sin algoritmos opacos, sin anuncios y respetuosa con tu privacidad.
+
+Características destacadas:
+• Muro cronológico y directo: No te pierdas ninguna publicación de tus compañeros.
+• Comunidades y grupos: Crea y administra grupos de acción temática o local.
+• Mensajería instantánea: Comunícate de forma privada o en grupo con total confianza.
+• Fediverse / ActivityPub: Conéctate con la red descentralizada global.
+• Notificaciones libres (ntfy): Recibe alertas en tiempo real mediante un servidor autónomo y desgooglizado.
+• Compartir multimedia: Fotos, vídeos y documentos sin censura algorítmica.
+• Eventos militantes: Coordina y asiste a movilizaciones y actos colectivos.
+
+Software 100% libre y abierto para una comunicación emancipada.

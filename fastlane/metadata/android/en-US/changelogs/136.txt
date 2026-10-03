@@ -1,0 +1,3 @@
+- Reliable real-time push notifications and unread badge.
+- Improved feed fluidity and media loading.
+- Stability fixes and overall performance optimizations.

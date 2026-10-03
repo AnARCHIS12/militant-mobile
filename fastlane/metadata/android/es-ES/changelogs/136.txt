@@ -1,0 +1,3 @@
+- Notificaciones automáticas en tiempo real y contador de no leídas.
+- Carga de publicaciones más rápida y fluida.
+- Correcciones de estabilidad y optimizaciones de rendimiento.

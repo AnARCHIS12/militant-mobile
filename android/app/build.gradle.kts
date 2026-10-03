@@ -27,7 +27,7 @@ fun dartDefine(name: String, default: String = ""): String {
         ?: default
 }
 val isFdroidBuild = dartDefine("FDROID_BUILD") == "true"
-val appIdSuffix   = if (isFdroidBuild) ".fdroid" else ""
+val appIdSuffix   = dartDefine("APP_ID_SUFFIX", "")
 
 // Le plugin google-services (Firebase/OneSignal) n'est utile que pour la version Play Store.
 // La version F-Droid utilise uniquement ntfy et n'a pas de firebase.
@@ -107,8 +107,10 @@ dependencies {
     // Trusted Web Activity support
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
 
-    // Expose OneSignal native notification extension interfaces to the app module
-    implementation("com.onesignal:core:5.6.1")
+    if (!isFdroidBuild) {
+        // Expose OneSignal native notification extension interfaces to the app module (Play Store only)
+        implementation("com.onesignal:core:5.6.1")
+    }
     
     // Core activity components for Edge-to-Edge (Android 15+)
     implementation("androidx.activity:activity-ktx:1.10.0")

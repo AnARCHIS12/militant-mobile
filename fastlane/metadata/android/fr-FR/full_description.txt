@@ -1,0 +1,14 @@
+Militant est le réseau social décentralisé conçu pour les activistes, collectifs, syndicats et citoyens engagés.
+
+Reprenez le contrôle de vos échanges avec une plateforme libre, sans algorithme d'enfermement, sans publicité et respectueuse de votre vie privée.
+
+Fonctionnalités principales :
+• Fil d'actualité chronologique et direct : Ne manquez aucune publication de vos camarades.
+• Communautés et groupes : Créez et gérez des groupes de discussion thématiques ou d'action.
+• Messagerie instantanée sécurisée : Échangez en privé ou en groupe en toute sérénité.
+• Intégration Fediverse / ActivityPub : Interagissez avec l'écosystème décentralisé global.
+• Notifications libres (ntfy) : Recevez vos alertes instantanément via un serveur de notifications libre et dégooglisé.
+• Partage multimédia : Photos, vidéos, documents et liens sans censure algorithmique.
+• Événements militants : Organisez et rejoignez des mobilisations locales et nationales.
+
+Une application 100% libre et ouverte, pour une communication émancipée.
