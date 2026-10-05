@@ -6,6 +6,7 @@ import 'package:fvp/fvp.dart' as fvp;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/profile_screen.dart';
 
 import 'services/theme_manager.dart';
 import 'services/language_service.dart';
@@ -44,8 +45,7 @@ void main() async {
   // FVP is useful for desktop playback, but Android already has a native
   // backend for video_player and early registration here can destabilize
   // startup on the emulator before the debug service is attached.
-  if (!kIsWeb &&
-      (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+  if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
     fvp.registerWith(
       options: {
         'hwdec': 'auto',
@@ -110,6 +110,21 @@ class MilitantApp extends StatelessWidget {
                 useMaterial3: true,
               ),
               home: const SplashScreen(),
+              onGenerateRoute: (settings) {
+                if (settings.name == '/profile') {
+                  final argument = settings.arguments;
+                  final userId = argument is int
+                      ? argument
+                      : int.tryParse(argument?.toString() ?? '');
+                  if (userId != null) {
+                    return MaterialPageRoute<void>(
+                      builder: (_) => ProfileScreen(userId: userId),
+                      settings: settings,
+                    );
+                  }
+                }
+                return null;
+              },
               debugShowCheckedModeBanner: false,
             );
           },

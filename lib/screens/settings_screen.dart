@@ -414,7 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             ElevatedButton.icon(
               onPressed: () => launchUrl(
-                Uri.parse('https://militant.revlibertaire.com'),
+                Uri.parse('https://joinmilitant.revlibertaire.com'),
                 mode: LaunchMode.externalApplication,
               ),
               icon: const Icon(Icons.language, size: 18),
@@ -593,11 +593,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(getFriendlyErrorMessage(e)),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(getFriendlyErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -866,9 +864,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            LanguageService.instance.translate('settings_updated'),
-          ),
+          content: Text(LanguageService.instance.translate('settings_updated')),
           duration: const Duration(seconds: 1),
           backgroundColor: Colors.green,
         ),
@@ -905,29 +901,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   _emailEnabled,
                   (v) => _updatePreference('notifications_email', v),
                 ),
-                if (_pushEnabled && PushProvider.isProprietaryPushSupported) ...[
+                if (_pushEnabled &&
+                    PushProvider.isProprietaryPushSupported) ...[
                   _buildSectionHeader(
                     lang.translate('notifications_provider_title'),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
                     child: Container(
                       decoration: BoxDecoration(
                         color: theme.cardColor,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+                        border: Border.all(
+                          color: theme.dividerColor.withOpacity(0.2),
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 4,
+                        horizontal: 8,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           RadioListTile<PushProvider>(
                             title: Text(
                               lang.translate('notifications_provider_ntfy'),
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
                             subtitle: Text(
-                              lang.translate('notifications_provider_ntfy_subtitle'),
+                              lang.translate(
+                                'notifications_provider_ntfy_subtitle',
+                              ),
                               style: const TextStyle(fontSize: 12),
                             ),
                             value: PushProvider.ntfy,
@@ -941,11 +951,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           const Divider(height: 1),
                           RadioListTile<PushProvider>(
                             title: Text(
-                              lang.translate('notifications_provider_onesignal'),
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              lang.translate(
+                                'notifications_provider_onesignal',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
                             subtitle: Text(
-                              lang.translate('notifications_provider_onesignal_subtitle'),
+                              lang.translate(
+                                'notifications_provider_onesignal_subtitle',
+                              ),
                               style: const TextStyle(fontSize: 12),
                             ),
                             value: PushProvider.onesignal,
@@ -960,10 +977,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           RadioListTile<PushProvider>(
                             title: Text(
                               lang.translate('notifications_provider_both'),
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
                             subtitle: Text(
-                              lang.translate('notifications_provider_both_subtitle'),
+                              lang.translate(
+                                'notifications_provider_both_subtitle',
+                              ),
                               style: const TextStyle(fontSize: 12),
                             ),
                             value: PushProvider.both,
@@ -1004,8 +1026,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   lang.translate('notifications_friend_requests'),
                   lang.translate('notifications_friend_requests_subtitle'),
                   _friendRequests,
-                  (v) =>
-                      _updatePreference('notifications_friend_requests', v),
+                  (v) => _updatePreference('notifications_friend_requests', v),
                 ),
                 _buildSwitch(
                   lang.translate('notifications_follows'),
@@ -1069,7 +1090,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(getFriendlyErrorMessage(e)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(getFriendlyErrorMessage(e)),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

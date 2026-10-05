@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../services/api_service.dart';
+import '../services/language_service.dart';
 
 class LinkableText extends StatelessWidget {
   final String text;
@@ -11,6 +13,7 @@ class LinkableText extends StatelessWidget {
   final Color? linkColor;
   final TextAlign? textAlign;
   final Function(List<String>)? onLinksDetected;
+  final ValueChanged<String>? onMentionTap;
 
   const LinkableText({
     super.key,
@@ -19,6 +22,7 @@ class LinkableText extends StatelessWidget {
     this.linkColor,
     this.textAlign,
     this.onLinksDetected,
+    this.onMentionTap,
   });
 
   @override
@@ -32,7 +36,7 @@ class LinkableText extends StatelessWidget {
       onLinksDetected!(urls);
     }
 
-    final spans = _buildTextSpans(text, style, defaultLinkColor);
+    final spans = _buildTextSpans(context, text, style, defaultLinkColor);
 
     return RichText(
       text: TextSpan(children: spans),
@@ -50,6 +54,7 @@ class LinkableText extends StatelessWidget {
   }
 
   List<TextSpan> _buildTextSpans(
+    BuildContext context,
     String text,
     TextStyle? baseStyle,
     Color linkColor,
@@ -85,10 +90,23 @@ class LinkableText extends StatelessWidget {
         spans.add(
           TextSpan(
             text: matchText,
-            style: baseStyle?.copyWith(
-              color: linkColor,
-              fontWeight: FontWeight.bold,
-            ) ?? TextStyle(color: linkColor, fontWeight: FontWeight.bold),
+            style:
+                baseStyle?.copyWith(
+                  color: linkColor,
+                  fontWeight: FontWeight.bold,
+                ) ??
+                TextStyle(color: linkColor, fontWeight: FontWeight.bold),
+            recognizer: isMention
+                ? (TapGestureRecognizer()
+                    ..onTap = () {
+                      final username = matchText.substring(1);
+                      if (onMentionTap != null) {
+                        onMentionTap!(username);
+                      } else {
+                        _openMentionProfile(context, username);
+                      }
+                    })
+                : null,
           ),
         );
       } else {
@@ -96,11 +114,17 @@ class LinkableText extends StatelessWidget {
         spans.add(
           TextSpan(
             text: matchText,
-            style: baseStyle?.copyWith(
-              color: linkColor,
-              decoration: TextDecoration.underline,
-            ) ?? TextStyle(color: linkColor, decoration: TextDecoration.underline),
-            recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(matchText),
+            style:
+                baseStyle?.copyWith(
+                  color: linkColor,
+                  decoration: TextDecoration.underline,
+                ) ??
+                TextStyle(
+                  color: linkColor,
+                  decoration: TextDecoration.underline,
+                ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => _launchUrl(matchText),
           ),
         );
       }
@@ -119,6 +143,65 @@ class LinkableText extends StatelessWidget {
     }
 
     return spans;
+  }
+
+  Future<void> _openMentionProfile(
+    BuildContext context,
+    String username,
+  ) async {
+    final normalizedUsername = username.trim().replaceFirst('@', '');
+    if (normalizedUsername.isEmpty) return;
+
+    try {
+      final api = await ApiService.getInstance();
+      final response = await api.search(
+        normalizedUsername,
+        type: 'users',
+        page: 1,
+      );
+      final rawUsers = response['items'] is List
+          ? response['items'] as List
+          : (response['data'] is List ? response['data'] as List : const []);
+
+      Map<String, dynamic>? matchingUser;
+      for (final rawUser in rawUsers) {
+        if (rawUser is! Map) continue;
+        final user = Map<String, dynamic>.from(rawUser);
+        final candidate = (user['username'] ?? '').toString().trim();
+        if (candidate.toLowerCase() == normalizedUsername.toLowerCase()) {
+          matchingUser = user;
+          break;
+        }
+      }
+
+      final rawUserId = matchingUser?['id'] ?? matchingUser?['user_id'];
+      final userId = rawUserId is int
+          ? rawUserId
+          : int.tryParse(rawUserId?.toString() ?? '');
+
+      if (!context.mounted) return;
+      if (userId == null) {
+        _showMentionError(context);
+        return;
+      }
+
+      await Navigator.of(context).pushNamed('/profile', arguments: userId);
+    } catch (error) {
+      debugPrint('Erreur ouverture mention @$normalizedUsername: $error');
+      if (context.mounted) {
+        _showMentionError(context);
+      }
+    }
+  }
+
+  void _showMentionError(BuildContext context) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          LanguageService.instance.translate('mention_profile_not_found'),
+        ),
+      ),
+    );
   }
 
   Future<void> _launchUrl(String urlString) async {
@@ -186,12 +269,15 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
     try {
       // 2. Essayer de récupérer les métadonnées OpenGraph
       final response = await http
-          .get(Uri.parse(normalizedUrl), headers: {
-            'User-Agent':
-                'Mozilla/5.0 (Compatible; MilitantBot/1.0; +https://militant.sh)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
-            'Accept-Charset': 'utf-8',
-          })
+          .get(
+            Uri.parse(normalizedUrl),
+            headers: {
+              'User-Agent':
+                  'Mozilla/5.0 (Compatible; MilitantBot/1.0; +https://militant.sh)',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+              'Accept-Charset': 'utf-8',
+            },
+          )
           .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
@@ -304,7 +390,8 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
             // Si plateforme non détectée, on essaie via le titre
             if (_platform == null && _title != null) {
               final lowerTitle = _title!.toLowerCase();
-              if (lowerTitle.contains('twitter') || lowerTitle.contains(' x ')) {
+              if (lowerTitle.contains('twitter') ||
+                  lowerTitle.contains(' x ')) {
                 _platform = 'twitter';
               } else if (lowerTitle.contains('facebook')) {
                 _platform = 'facebook';
@@ -392,44 +479,51 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: _platform != null 
+                      color: _platform != null
                           ? _getPlatformColor(_platform)
-                          : isDark ? Colors.white10 : Colors.white,
+                          : isDark
+                          ? Colors.white10
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      border: _platform == null ? Border.all(color: isDark ? Colors.white10 : Colors.black12) : null,
+                      border: _platform == null
+                          ? Border.all(
+                              color: isDark ? Colors.white10 : Colors.black12,
+                            )
+                          : null,
                     ),
                     child: Center(
                       child: _platform != null
                           ? FaIcon(
-                            _getPlatformIcon(_platform),
-                            color:
-                                _platform == 'midjourney' ||
-                                        _platform == 'huggingface'
-                                    ? Colors.black
-                                    : Colors.white,
-                            size: 18,
-                          )
+                              _getPlatformIcon(_platform),
+                              color:
+                                  _platform == 'midjourney' ||
+                                      _platform == 'huggingface'
+                                  ? Colors.black
+                                  : Colors.white,
+                              size: 18,
+                            )
                           : _faviconUrl != null
                           ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              _faviconUrl!,
-                              width: 24,
-                              height: 24,
-                              errorBuilder:
-                                  (context, error, stackTrace) =>
-                                      Icon(
-                                        Icons.link,
-                                        color: isDark ? Colors.white70 : Colors.black54,
-                                        size: 20,
-                                      ),
-                            ),
-                          )
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                _faviconUrl!,
+                                width: 24,
+                                height: 24,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Icon(
+                                      Icons.link,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                      size: 20,
+                                    ),
+                              ),
+                            )
                           : Icon(
-                            Icons.link,
-                            color: isDark ? Colors.white70 : Colors.black54,
-                            size: 20,
-                          ),
+                              Icons.link,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              size: 20,
+                            ),
                     ),
                   ),
 
@@ -617,7 +711,6 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
         return FontAwesomeIcons.link;
     }
   }
-
 
   String _getPlatformName(String platform) {
     switch (platform) {
