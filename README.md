@@ -31,10 +31,14 @@
 
 Militant est un réseau social décentralisé conçu pour les mouvements militants et les organisations politiques. Cette application mobile permet de se connecter à n'importe quelle instance Militant auto-hébergée.
 
-Version actuelle : **1.0.9+136**
+Version actuelle : **1.0.9+138** ([notes et téléchargements de la release](https://gitlab.com/militant1/militant-flutter/-/releases/v1.0.9%2B138)).
 
 
-## Nouveautés 1.0.9
+## Nouveautés 1.0.9 (build 138)
+
+- **Fiabilité des appels et notifications** : corrections de réception des appels entrants et des notifications, avec **OneSignal** rétabli comme choix par défaut dans l’édition Google Play.
+- **Mentions** : les profils mentionnés affichent désormais leur avatar et le lien ouvre bien leur profil.
+- **Deux binaires distincts** : le binaire F-Droid est compilé sans SDK OneSignal ; l’APK/AAB Google Play conserve OneSignal. Le script de compilation choisit automatiquement le manifeste de dépendances correspondant.
 
 - **Gestion des Notifications par E-mail & Contrôle des Interactions (Build 136)** :
   - **Interrupteur d'e-mails dédié** : Réintégration du commutateur dans les Paramètres > Notifications pour activer ou désactiver les alertes par e-mail directement depuis l'application mobile.
@@ -67,7 +71,7 @@ Version actuelle : **1.0.9+136**
 - **Conformité & Performances Android 15** :
   - Prise en charge native du bord-à-bord Android 15 (`Edge-to-Edge`) et nettoyage des API système dépréciées.
   - Optimisations R8 (fullMode) et réduction de taille des ressources (`resource shrinking`).
-  - Version applicative synchronisée sur `1.0.9` (code de version 136).
+  - Version applicative synchronisée sur `1.0.9` (code de version 138).
 
 ## Nouveautés 1.0.8
 

@@ -10,7 +10,7 @@ Pour respecter la politique stricte de F-Droid (100% Logiciel Libre, aucune dép
 
 | Critère | Version F-Droid | Version Google Play Store |
 | :--- | :--- | :--- |
-| **Identifiant (`applicationId`)** | `com.militant.militant_flutter` | `com.militant.militant_flutter` |
+| **Identifiant (`applicationId`)** | `com.militant.militant_flutter.fdroid` | `com.militant.militant_flutter` |
 | **Notifications Push** | **ntfy** (auto-hébergé, dégooglisé, WebSocket/HTTP) | **OneSignal** (Google FCM) + ntfy en option |
 | **Google Play Services** | ❌ Désactivé (`google-services` non appliqué) | ✅ Activé |
 | **SDK OneSignal natif** | ❌ Exclu (`com.onesignal:core` non lié) | ✅ Activé |
@@ -31,7 +31,7 @@ fastlane/metadata/android/
 │   ├── short_description.txt      # Résumé court (<= 80 caractères)
 │   ├── full_description.txt       # Description complète (<= 4000 caractères)
 │   ├── changelogs/
-│   │   └── 136.txt                # Notes de version spécifiques au versionCode
+│   │   └── 138.txt                # Notes de version spécifiques au versionCode
 │   └── images/
 │       ├── icon.png               # Icône officielle (512x512 sans métadonnées EXIF)
 │       ├── featureGraphic.png     # Bannière (1024x500 sans EXIF)
@@ -92,12 +92,35 @@ Builds:
       - export PUB_CACHE=$(pwd)/.pub-cache
       - .flutter/bin/flutter build apk --release --dart-define=DEFAULT_PUSH_PROVIDER=ntfy --dart-define=FDROID_BUILD=true
 
+  - versionName: 1.0.9
+    versionCode: 138
+    commit: v1.0.9+138
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@stable
+    rm:
+      - ios
+      - linux
+      - macos
+      - web
+      - windows
+    prebuild:
+      - cp pubspec_fdroid.yaml pubspec.yaml
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - .flutter/bin/flutter config --no-analytics
+      - .flutter/bin/flutter pub get
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - .flutter/bin/flutter build apk --release --dart-define=DEFAULT_PUSH_PROVIDER=ntfy --dart-define=FDROID_BUILD=true
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 1.0.9
-CurrentVersionCode: 136
+CurrentVersionCode: 138
 ```
+
+Le fichier `pubspec_fdroid.yaml` est volontairement copié avant la résolution des dépendances : il remplace le plugin Flutter OneSignal par un adaptateur libre. Ainsi, aucun SDK OneSignal n'est embarqué dans l'APK F-Droid.
 
 ---
 
