@@ -715,7 +715,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // Default values
   bool _pushEnabled = true;
-  PushProvider _pushProvider = PushProvider.ntfy;
+  PushProvider _pushProvider = PushProvider.isFdroidBuild
+      ? PushProvider.ntfy
+      : PushProvider.onesignal;
+  bool _isUpdatingPushProvider = false;
   bool _emailEnabled = false;
   bool _likes = true;
   bool _comments = true;
@@ -810,7 +813,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         await NtfyPushService.instance.requestNotificationPermission();
         await api.initializePushService();
       } else if (key == 'notifications_push' && value == false) {
-        await NtfyPushService.instance.stopListening();
+        await api.disablePushService();
       }
 
       if (mounted) {
@@ -856,19 +859,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _updatePushProvider(PushProvider provider) async {
-    setState(() => _pushProvider = provider);
-    await NtfyPushService.instance.setSelectedProvider(provider);
-    await NtfyPushService.instance.requestNotificationPermission();
-    final api = await ApiService.getInstance();
-    await api.initializePushService();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(LanguageService.instance.translate('settings_updated')),
-          duration: const Duration(seconds: 1),
-          backgroundColor: Colors.green,
-        ),
-      );
+    if (_isUpdatingPushProvider || provider == _pushProvider) return;
+
+    final previousProvider = _pushProvider;
+    setState(() {
+      _pushProvider = provider;
+      _isUpdatingPushProvider = true;
+    });
+
+    try {
+      await NtfyPushService.instance.setSelectedProvider(provider);
+      await NtfyPushService.instance.requestNotificationPermission();
+      final api = await ApiService.getInstance();
+      await api.initializePushService();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              LanguageService.instance.translate('settings_updated'),
+            ),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      await NtfyPushService.instance.setSelectedProvider(previousProvider);
+      try {
+        final api = await ApiService.getInstance();
+        await api.initializePushService();
+      } catch (_) {}
+      if (mounted) {
+        setState(() => _pushProvider = previousProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${LanguageService.instance.translate('error')}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingPushProvider = false);
+      }
     }
   }
 
@@ -943,9 +976,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             value: PushProvider.ntfy,
                             activeColor: const Color(0xFFBE1E1E),
                             groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
+                            onChanged: _isUpdatingPushProvider
+                                ? null
+                                : (v) {
+                                    if (v != null) _updatePushProvider(v);
+                                  },
                             contentPadding: EdgeInsets.zero,
                           ),
                           const Divider(height: 1),
@@ -968,9 +1003,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             value: PushProvider.onesignal,
                             activeColor: const Color(0xFFBE1E1E),
                             groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
+                            onChanged: _isUpdatingPushProvider
+                                ? null
+                                : (v) {
+                                    if (v != null) _updatePushProvider(v);
+                                  },
                             contentPadding: EdgeInsets.zero,
                           ),
                           const Divider(height: 1),
@@ -991,9 +1028,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             value: PushProvider.both,
                             activeColor: const Color(0xFFBE1E1E),
                             groupValue: _pushProvider,
-                            onChanged: (v) {
-                              if (v != null) _updatePushProvider(v);
-                            },
+                            onChanged: _isUpdatingPushProvider
+                                ? null
+                                : (v) {
+                                    if (v != null) _updatePushProvider(v);
+                                  },
                             contentPadding: EdgeInsets.zero,
                           ),
                         ],

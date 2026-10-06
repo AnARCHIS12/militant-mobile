@@ -16,6 +16,7 @@ class NotificationReplyService {
       NotificationReplyService._internal();
 
   bool _isInitialized = false;
+  bool _oneSignalListenerAdded = false;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -23,9 +24,7 @@ class NotificationReplyService {
 
     final provider = await NtfyPushService.instance.getSelectedProvider();
     if (provider == PushProvider.onesignal || provider == PushProvider.both) {
-      try {
-        OneSignal.Notifications.addClickListener(_handleNotificationClick);
-      } catch (_) {}
+      enableOneSignalListener();
     }
 
     _isInitialized = true;
@@ -33,8 +32,12 @@ class NotificationReplyService {
 
   /// Initialise l'écouteur OneSignal si activé dynamiquement
   void enableOneSignalListener() {
+    if (_oneSignalListenerAdded) return;
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
     try {
       OneSignal.Notifications.addClickListener(_handleNotificationClick);
+      _oneSignalListenerAdded = true;
     } catch (_) {}
   }
 

@@ -209,8 +209,6 @@ class ApiService {
     return {};
   }
 
-  static bool _oneSignalInitialized = false;
-
   /// Initialise OneSignal dynamiquement avec l'App ID du serveur
   Future<void> initializeOneSignal() async {
     // Only on supported platforms
@@ -225,15 +223,42 @@ class ApiService {
       print('Initialisation de OneSignal avec App ID: $appId');
       try {
         OneSignal.initialize(appId);
-        OneSignal.Notifications.requestPermission(true);
-        _oneSignalInitialized = true;
+        await OneSignal.Notifications.requestPermission(true);
       } catch (e) {
         print('Erreur d\'initialisation OneSignal: $e');
       }
     }
   }
 
-  /// Initialise le système de push selon le provider configuré (ntfy par défaut, ou OneSignal)
+  bool get _supportsNativePush =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  Future<void> _disableOneSignalPush() async {
+    if (!_supportsNativePush) return;
+
+    // Le SDK natif peut déjà être actif même si initializeOneSignal n'a pas
+    // encore été appelé côté Dart. Toujours opt-out pour que le passage à ntfy
+    // coupe réellement les notifications OneSignal.
+    try {
+      await OneSignal.User.pushSubscription.optOut();
+    } catch (e) {
+      print('[ApiService] Erreur OneSignal opt-out: $e');
+    }
+
+    try {
+      await OneSignal.logout();
+    } catch (e) {
+      print('[ApiService] Erreur OneSignal logout: $e');
+    }
+  }
+
+  /// Coupe tous les canaux push sur cet appareil.
+  Future<void> disablePushService() async {
+    await NtfyPushService.instance.stopListening();
+    await _disableOneSignalPush();
+  }
+
+  /// Initialise le système de push selon le provider configuré.
   Future<void> initializePushService({dynamic userId}) async {
     final provider = await NtfyPushService.instance.getSelectedProvider();
     print('[ApiService] Initialisation Push avec provider: ${provider.name}');
@@ -244,7 +269,7 @@ class ApiService {
     final parsedUserId = userId is int
         ? userId
         : (userId != null ? int.tryParse(userId.toString()) : null) ??
-            await getCurrentUserId();
+              await getCurrentUserId();
 
     // 1. ntfy (auto-hébergé dégooglisé)
     if (provider == PushProvider.ntfy || provider == PushProvider.both) {
@@ -258,6 +283,13 @@ class ApiService {
     // 2. OneSignal (legacy / stores)
     if (provider == PushProvider.onesignal || provider == PushProvider.both) {
       await initializeOneSignal();
+      if (_supportsNativePush) {
+        try {
+          await OneSignal.User.pushSubscription.optIn();
+        } catch (e) {
+          print('[ApiService] Erreur OneSignal opt-in: $e');
+        }
+      }
       MessageNotificationService.instance.enableOneSignalListener();
       NotificationReplyService.instance.enableOneSignalListener();
       IncomingCallService.instance.enableOneSignalListener();
@@ -268,21 +300,14 @@ class ApiService {
             (Platform.isAndroid || Platform.isIOS)) {
           try {
             print('[ApiService] OneSignal Login avec External ID: $externalId');
-            OneSignal.login(externalId);
+            await OneSignal.login(externalId);
           } catch (e) {
             print('[ApiService] Erreur OneSignal login: $e');
           }
         }
       }
     } else {
-      if (!kIsWeb &&
-          (Platform.isAndroid || Platform.isIOS) &&
-          _oneSignalInitialized) {
-        try {
-          await OneSignal.logout().catchError((_) {});
-          _oneSignalInitialized = false;
-        } catch (_) {}
-      }
+      await _disableOneSignalPush();
     }
   }
 
@@ -416,16 +441,7 @@ class ApiService {
     await prefs.remove('api_token');
     await prefs.remove('user_id');
 
-    await NtfyPushService.instance.stopListening();
-
-    if (!kIsWeb &&
-        (Platform.isAndroid || Platform.isIOS) &&
-        _oneSignalInitialized) {
-      try {
-        await OneSignal.logout().catchError((_) {});
-        _oneSignalInitialized = false;
-      } catch (_) {}
-    }
+    await disablePushService();
   }
 
   int? _parseDynamicUserId(dynamic value) {
@@ -2154,12 +2170,33 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      if (data['success'] == true && data['data'] != null) {
-        return data['data']['call'] ?? {};
+      if (data is Map<String, dynamic> && data['success'] == true) {
+        // The current API returns {success, call, ice_candidates, ...} while
+        // older deployments wrapped the same payload in {success, data:{...}}.
+        // Accept both shapes so the incoming side can always recover offer_sdp.
+        final wrappedData = data['data'];
+        if (wrappedData is Map) {
+          final wrappedCall = wrappedData['call'];
+          if (wrappedCall is Map) {
+            return Map<String, dynamic>.from(wrappedCall);
+          }
+        }
+
+        final directCall = data['call'];
+        if (directCall is Map) {
+          return Map<String, dynamic>.from(directCall);
+        }
       }
-      return data;
+
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      return {};
     } else {
-      throw Exception('Impossible de récupérer les infos de l\'appel');
+      throw Exception(
+        'Impossible de récupérer les infos de l\'appel '
+        '(HTTP ${response.statusCode}: ${_bodyPreview(response.body)})',
+      );
     }
   }
 
@@ -2178,8 +2215,14 @@ class ApiService {
 
   // === MESSAGES ===
 
-  Future<List<dynamic>> getMessages({int? userId, int page = 1, String? query}) async {
-    final qParam = query != null && query.isNotEmpty ? '&q=${Uri.encodeComponent(query)}' : '';
+  Future<List<dynamic>> getMessages({
+    int? userId,
+    int page = 1,
+    String? query,
+  }) async {
+    final qParam = query != null && query.isNotEmpty
+        ? '&q=${Uri.encodeComponent(query)}'
+        : '';
     final url = userId != null
         ? '$apiUrl/v1/messages.php?user_id=$userId&page=$page$qParam'
         : '$apiUrl/v1/messages.php?page=$page$qParam';
@@ -2773,7 +2816,9 @@ class ApiService {
   // === GROUPES ===
 
   Future<List<dynamic>> getGroups({int page = 1, String? query}) async {
-    final qParam = query != null && query.isNotEmpty ? '&q=${Uri.encodeComponent(query)}' : '';
+    final qParam = query != null && query.isNotEmpty
+        ? '&q=${Uri.encodeComponent(query)}'
+        : '';
     final response = await http.get(
       Uri.parse('$apiUrl/v1/groups.php?page=$page$qParam'),
       headers: _headers,
@@ -2796,7 +2841,9 @@ class ApiService {
   }
 
   Future<List<dynamic>> discoverGroups({int page = 1, String? query}) async {
-    final qParam = query != null && query.isNotEmpty ? '&q=${Uri.encodeComponent(query)}' : '';
+    final qParam = query != null && query.isNotEmpty
+        ? '&q=${Uri.encodeComponent(query)}'
+        : '';
     final response = await http.get(
       Uri.parse('$apiUrl/v1/groups.php?discover=1&page=$page$qParam'),
       headers: _headers,
@@ -3095,8 +3142,6 @@ class ApiService {
     }
   }
 
-
-
   Future<List<dynamic>> getGroupMembers(int groupId, {int page = 1}) async {
     final response = await http.get(
       Uri.parse('$apiUrl/v1/groups.php?id=$groupId&members=1&page=$page'),
@@ -3237,7 +3282,9 @@ class ApiService {
   }
 
   Future<List<dynamic>> getMessageGroups({int page = 1, String? query}) async {
-    final qParam = query != null && query.isNotEmpty ? '&q=${Uri.encodeComponent(query)}' : '';
+    final qParam = query != null && query.isNotEmpty
+        ? '&q=${Uri.encodeComponent(query)}'
+        : '';
     final response = await http.get(
       Uri.parse('$apiUrl/v1/message_groups.php?page=$page$qParam'),
       headers: _headers,

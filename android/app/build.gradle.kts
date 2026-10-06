@@ -85,6 +85,15 @@ android {
             )
         }
     }
+
+    // La variante F-Droid ne compile pas l'extension Android OneSignal.
+    // Le SDK Flutter est remplacé par un adaptateur Dart sans dépendance native
+    // dans scripts/build_fdroid.sh.
+    if (isFdroidBuild) {
+        sourceSets.getByName("main").java.exclude(
+            "**/OneSignalCallNotificationServiceExtension.kt",
+        )
+    }
 }
 
 configurations.all {
@@ -94,6 +103,14 @@ configurations.all {
         force("androidx.datastore:datastore-preferences:1.1.3")
         force("androidx.datastore:datastore-preferences-core:1.1.3")
         force("androidx.datastore:datastore-preferences-android:1.1.3")
+    }
+}
+
+// Kotlin's source set is distinct from Android's Java source set. Exclude the
+// OneSignal notification extension explicitly for the F-Droid build.
+if (isFdroidBuild) {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        exclude("**/OneSignalCallNotificationServiceExtension.kt")
     }
 }
 
@@ -135,4 +152,3 @@ dependencies {
         }
     }
 }
-

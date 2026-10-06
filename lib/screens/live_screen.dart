@@ -24,6 +24,12 @@ class LiveScreen extends StatefulWidget {
 
 enum _LiveMode { viewer, creator }
 
+List<dynamic> activeLiveModerationReports(Iterable<dynamic> reports) {
+  return reports.where((report) {
+    return report is Map && report['live_status']?.toString() == 'live';
+  }).toList();
+}
+
 class _LiveScreenState extends State<LiveScreen> {
   static const String _livekitChatTopic = 'militant-live-chat';
   static const String _livekitControlTopic = 'militant-live-control';
@@ -142,7 +148,7 @@ class _LiveScreenState extends State<LiveScreen> {
       final list = await api.getLiveReports();
       if (!mounted) return;
       setState(() {
-        _moderationReports = list;
+        _moderationReports = activeLiveModerationReports(list);
         _loadingModeration = false;
       });
     } catch (_) {
@@ -1612,7 +1618,7 @@ class _LiveScreenState extends State<LiveScreen> {
                     report['reason'] ??
                     translate('live_moderation_other_reason');
                 final desc = report['description'] ?? '';
-                final isEnded = report['live_status'] == 'ended';
+                final liveId = report['live_id'];
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -1621,11 +1627,9 @@ class _LiveScreenState extends State<LiveScreen> {
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: isEnded
-                          ? Colors.grey
-                          : const Color(0xFFBE1E1E),
-                      child: Icon(
-                        isEnded ? Icons.stop_rounded : Icons.live_tv_rounded,
+                      backgroundColor: const Color(0xFFBE1E1E),
+                      child: const Icon(
+                        Icons.live_tv_rounded,
                         color: Colors.white,
                       ),
                     ),
@@ -1662,10 +1666,12 @@ class _LiveScreenState extends State<LiveScreen> {
                           ),
                       ],
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      // Optionnel: Ouvrir le live ou le détail
-                    },
+                    trailing: IconButton(
+                      tooltip: translate('live_moderation_open_live'),
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => _joinDirectly(liveId),
+                    ),
+                    onTap: () => _joinDirectly(liveId),
                   ),
                 );
               },

@@ -43,6 +43,7 @@ Builds:
       - web
       - windows
     prebuild:
+      - cp pubspec_fdroid.yaml pubspec.yaml
       - export PUB_CACHE=$(pwd)/.pub-cache
       - .flutter/bin/flutter config --no-analytics
       - .flutter/bin/flutter pub get
@@ -54,4 +55,4 @@ AutoUpdateMode: Version
 UpdateCheckMode: Tags
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
 CurrentVersion: 1.0.9
-CurrentVersionCode: 136
+CurrentVersionCode: 138

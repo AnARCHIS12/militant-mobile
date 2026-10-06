@@ -21,6 +21,7 @@ class MessageNotificationService {
   );
 
   bool _isInitialized = false;
+  bool _oneSignalListenerAdded = false;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -48,8 +49,9 @@ class MessageNotificationService {
 
       // Vérifier si l'app a été démarrée à froid depuis un clic sur une notification native
       try {
-        final initial =
-            await _channel.invokeMethod<Map>('getInitialMessageNotification');
+        final initial = await _channel.invokeMethod<Map>(
+          'getInitialMessageNotification',
+        );
         if (initial != null) {
           MessageNavigationService.instance.handlePayload(
             Map<String, dynamic>.from(initial),
@@ -67,6 +69,9 @@ class MessageNotificationService {
 
   /// Initialise l'écouteur OneSignal en avant-plan si activé dynamiquement
   void enableOneSignalListener() {
+    if (_oneSignalListenerAdded) return;
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
     try {
       OneSignal.Notifications.addForegroundWillDisplayListener((event) async {
         final data = event.notification.additionalData;
@@ -106,6 +111,7 @@ class MessageNotificationService {
 
         event.notification.display();
       });
+      _oneSignalListenerAdded = true;
     } catch (_) {}
   }
 
@@ -126,11 +132,7 @@ class MessageNotificationService {
     if (isGroupCallMarker) return false;
 
     if (type == 'message' || type == 'group_message') {
-      await _showReplyableNotification(
-        title: title,
-        body: body,
-        data: data,
-      );
+      await _showReplyableNotification(title: title, body: body, data: data);
       return true;
     }
 
@@ -153,12 +155,16 @@ class MessageNotificationService {
       final senderId = int.tryParse(data['sender_id']?.toString() ?? '') ?? -1;
       final groupId = int.tryParse(data['group_id']?.toString() ?? '') ?? -1;
 
-      final convName = data['username']?.toString() ??
+      final convName =
+          data['username']?.toString() ??
           data['sender_name']?.toString() ??
           data['group_name']?.toString() ??
-          (title.isNotEmpty && !title.contains('Nouveau message') ? title : null) ??
+          (title.isNotEmpty && !title.contains('Nouveau message')
+              ? title
+              : null) ??
           (isGroup ? 'Groupe' : 'Message');
-      final avatar = data['avatar']?.toString() ?? data['sender_avatar']?.toString();
+      final avatar =
+          data['avatar']?.toString() ?? data['sender_avatar']?.toString();
 
       await _channel.invokeMethod('showReplyNotification', {
         'title': title,

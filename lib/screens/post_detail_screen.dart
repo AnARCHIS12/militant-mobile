@@ -9,6 +9,7 @@ import '../widgets/post_card.dart';
 import '../widgets/militant_badge.dart';
 import '../widgets/technician_badge.dart';
 import '../widgets/linkable_text.dart';
+import '../widgets/mention_user_avatar.dart';
 import '../utils/error_helper.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isMentionLoading = false;
   List<Map<String, dynamic>> _mentionSuggestions = [];
   int _mentionRequestId = 0;
+  ApiService? _mentionApi;
   Post? _post;
   Comment? _replyingTo; // Pour suivre à quel commentaire on répond
 
@@ -88,6 +90,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     setState(() => _isMentionLoading = true);
     try {
       final api = await ApiService.getInstance();
+      _mentionApi = api;
       final data = await api.search(query, type: 'users', page: 1);
       final raw = data['data'] is List
           ? data['data'] as List
@@ -342,7 +345,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildCommentItem(Comment comment, {int depth = 0, String? parentUsername}) {
+  Widget _buildCommentItem(
+    Comment comment, {
+    int depth = 0,
+    String? parentUsername,
+  }) {
     final lang = LanguageService.instance;
     final theme = Theme.of(context);
     final textColor = theme.textTheme.bodyLarge?.color;
@@ -428,7 +435,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                         if (comment.militantBadge != null) ...[
                           const SizedBox(width: 4),
-                          MilitantBadge(badgeId: comment.militantBadge, size: 16),
+                          MilitantBadge(
+                            badgeId: comment.militantBadge,
+                            size: 16,
+                          ),
                         ],
                         if (comment.isMilitantTechnician) ...[
                           const SizedBox(width: 4),
@@ -441,7 +451,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFBE1E1E).withOpacity(0.15),
+                                color: const Color(
+                                  0xFFBE1E1E,
+                                ).withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Icon(
@@ -488,12 +500,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     LinkableText(
-                      text: (parentUsername != null ? "@$parentUsername " : "") +
+                      text:
+                          (parentUsername != null ? "@$parentUsername " : "") +
                           (comment.isTranslated &&
                                   comment.translatedContent != null
                               ? comment.translatedContent!
                               : comment.content),
-                      style: TextStyle(color: textColor, fontSize: 18, height: 1.4),
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 18,
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     // Boutons Répondre, Réaction et Traduire
@@ -588,9 +605,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
         ),
         // Afficher les réponses de manière récursive
-          ...comment.replies.map(
-            (reply) => _buildCommentItem(reply, depth: depth + 1, parentUsername: comment.username),
+        ...comment.replies.map(
+          (reply) => _buildCommentItem(
+            reply,
+            depth: depth + 1,
+            parentUsername: comment.username,
           ),
+        ),
       ],
     );
   }
@@ -633,9 +654,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         debugPrint('Error deleting comment: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(getFriendlyErrorMessage(e, lang)),
-            ),
+            SnackBar(content: Text(getFriendlyErrorMessage(e, lang))),
           );
         }
       }
@@ -680,9 +699,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         debugPrint('Error editing comment: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(getFriendlyErrorMessage(e, lang)),
-            ),
+            SnackBar(content: Text(getFriendlyErrorMessage(e, lang))),
           );
         }
       }
@@ -852,9 +869,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               horizontal: 10,
                               vertical: 0,
                             ),
-                            leading: const CircleAvatar(
-                              radius: 14,
-                              child: Icon(Icons.person, size: 14),
+                            leading: MentionUserAvatar(
+                              user: user,
+                              api: _mentionApi!,
                             ),
                             title: Text(
                               '@$username',

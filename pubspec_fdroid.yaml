@@ -1,0 +1,54 @@
+name: militant
+description: "Le réseau social militant décentralisé"
+publish_to: "none"
+version: 1.0.9+138
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.5
+  flutter_svg: ^2.3.0
+  http: ^1.2.0
+  video_player: ^2.9.3
+  fvp: 0.35.2
+  url_launcher: ^6.3.3
+  onesignal_flutter: 5.4.1
+  image_picker: ^1.2.3
+  file_picker: ^8.1.5
+  audioplayers: ^6.1.0
+  record: ^6.2.0
+  path_provider: ^2.1.6
+  permission_handler: ^11.3.1
+  share_plus: ^10.0.0
+  flutter_webrtc: ^1.3.0
+  livekit_client: ^2.7.0
+  web_socket_channel: ^3.0.1
+  app_links: ^6.3.2
+  qr_flutter: ^4.1.0
+  connectivity_plus: ^7.3.2
+  font_awesome_flutter: ^10.8.0
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+dependency_overrides:
+  # A pure-Dart no-op API compatible with the app's OneSignal calls. It has no
+  # Android plugin, so Flutter cannot package the proprietary SDK in F-Droid.
+  onesignal_flutter:
+    path: tools/fdroid/onesignal_flutter_stub
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.svg
+    - assets/icon-512.png
+    - assets/offline.html
+    - assets/badges/
+    - assets/thumbs-up-red-black.svg

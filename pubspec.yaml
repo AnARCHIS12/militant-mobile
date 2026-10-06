@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.9+136
+version: 1.0.9+138
 
 environment:
   sdk: ^3.9.0
@@ -38,7 +38,9 @@ dependencies:
   video_player: ^2.9.3
   fvp: 0.35.2
   url_launcher: ^6.3.3
-  onesignal_flutter: ^5.7.0
+  # Pinned to the previously validated release: newer 5.7.x caused
+  # regressions in incoming-call notification handling on Android.
+  onesignal_flutter: 5.4.1
   image_picker: ^1.2.3
   file_picker: ^8.1.5
   audioplayers: ^6.1.0

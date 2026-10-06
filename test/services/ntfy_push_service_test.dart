@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:militant/services/api_service.dart';
 import 'package:militant/services/ntfy_push_service.dart';
 
 void main() {
@@ -12,21 +11,27 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('Push provider preferences defaults and storage on NtfyPushService', () async {
-      final service = NtfyPushService.instance;
+    test(
+      'Push provider preferences defaults and storage on NtfyPushService',
+      () async {
+        final service = NtfyPushService.instance;
 
-      // Par défaut, si rien n'est stocké, getSelectedProvider renvoie ntfy
-      final defaultProvider = await service.getSelectedProvider();
-      expect(defaultProvider, equals(PushProvider.ntfy));
+        // Par défaut, la version Play Store utilise OneSignal.
+        final defaultProvider = await service.getSelectedProvider();
+        expect(defaultProvider, equals(PushProvider.onesignal));
 
-      // Modification vers onesignal
-      await service.setSelectedProvider(PushProvider.onesignal);
-      expect(await service.getSelectedProvider(), equals(PushProvider.onesignal));
+        // Modification vers onesignal
+        await service.setSelectedProvider(PushProvider.onesignal);
+        expect(
+          await service.getSelectedProvider(),
+          equals(PushProvider.onesignal),
+        );
 
-      // Modification vers both
-      await service.setSelectedProvider(PushProvider.both);
-      expect(await service.getSelectedProvider(), equals(PushProvider.both));
-    });
+        // Modification vers both
+        await service.setSelectedProvider(PushProvider.both);
+        expect(await service.getSelectedProvider(), equals(PushProvider.both));
+      },
+    );
 
     test('Topic construction follows militant_u_<userId> convention', () {
       final service = NtfyPushService.instance;

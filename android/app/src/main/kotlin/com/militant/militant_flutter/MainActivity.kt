@@ -155,18 +155,22 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
 
-        val messagePayload = extractMessageNotificationPayload(intent)
-        if (messagePayload != null) {
-            pendingMessageNotificationPayload = messagePayload
-            notifChannel?.invokeMethod("messageNotificationClicked", messagePayload)
+        // An incoming-call intent also contains generic notification fields such
+        // as `type` and `group_id`. Route calls before messages, otherwise the
+        // message bridge consumes the Accept/Join action and Flutter never opens
+        // the call screen.
+        val callPayload = extractIncomingCallPayload(intent)
+        if (callPayload != null) {
+            cancelIncomingCallNotification(intent)
+            pendingIncomingCallPayload = callPayload
+            applyIncomingCallWindowFlags(callPayload)
+            callsChannel?.invokeMethod("incomingCallIntent", callPayload)
             return
         }
 
-        val payload = extractIncomingCallPayload(intent) ?: return
-        cancelIncomingCallNotification(intent)
-        pendingIncomingCallPayload = payload
-        applyIncomingCallWindowFlags(payload)
-        callsChannel?.invokeMethod("incomingCallIntent", payload)
+        val messagePayload = extractMessageNotificationPayload(intent) ?: return
+        pendingMessageNotificationPayload = messagePayload
+        notifChannel?.invokeMethod("messageNotificationClicked", messagePayload)
     }
 
     private fun createNotificationChannels() {
@@ -489,6 +493,19 @@ class MainActivity : FlutterActivity() {
         }
         if (!conversationName.isNullOrBlank()) {
             payload["conversationName"] = conversationName
+        }
+
+        // Call intents must only be handled by the calls MethodChannel. Without
+        // this guard, their `type`/`group_id` fields make them look like message
+        // notifications and the Join/Accept action appears to do nothing.
+        val type = payload["type"]?.toString()
+        val isIncomingCall =
+            type == "call" ||
+                type == "talk_invite" ||
+                payload.containsKey("call_id") ||
+                payload.containsKey("room_token")
+        if (isIncomingCall) {
+            return null
         }
 
         val hasType = payload.containsKey("type")

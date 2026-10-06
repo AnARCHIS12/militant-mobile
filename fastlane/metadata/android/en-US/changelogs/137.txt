@@ -1,0 +1,3 @@
+- Reliability fixes for calls and incoming notifications.
+- OneSignal is restored as the default notification provider in the Play Store build.
+- Improved profile display in mentions.

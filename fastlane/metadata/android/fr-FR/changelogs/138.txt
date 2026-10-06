@@ -1,0 +1,3 @@
+- Correctifs de fiabilité pour les appels et les notifications entrantes.
+- OneSignal est rétabli comme mode de notification par défaut sur la version Play Store.
+- Amélioration de l'affichage des profils dans les mentions.

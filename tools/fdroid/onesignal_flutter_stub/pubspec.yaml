@@ -1,0 +1,7 @@
+name: onesignal_flutter
+description: F-Droid build-only no-op replacement for the OneSignal Flutter SDK.
+version: 5.4.1
+publish_to: none
+
+environment:
+  sdk: ^3.9.0

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
 import '../widgets/file_video_player.dart';
+import '../widgets/mention_user_avatar.dart';
 import '../utils/post_tags.dart';
 import '../utils/error_helper.dart';
 
@@ -30,6 +31,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _hasDraft = false;
   List<Map<String, dynamic>> _mentionSuggestions = [];
   int _mentionRequestId = 0;
+  ApiService? _mentionApi;
 
   List<String> get _detectedTags => extractPostTags(_contentController.text);
   String get _draftKey => 'draft_post_${widget.groupId ?? 'global'}';
@@ -128,6 +130,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _isMentionLoading = true);
     try {
       final api = await ApiService.getInstance();
+      _mentionApi = api;
       final data = await api.search(query, type: 'users', page: 1);
       final raw = data['data'] is List
           ? data['data'] as List
@@ -346,9 +349,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(getFriendlyErrorMessage(e, lang)),
-          ),
+          SnackBar(content: Text(getFriendlyErrorMessage(e, lang))),
         );
       }
     } finally {
@@ -466,9 +467,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                       horizontal: 10,
                                       vertical: 0,
                                     ),
-                                    leading: const CircleAvatar(
-                                      radius: 14,
-                                      child: Icon(Icons.person, size: 14),
+                                    leading: MentionUserAvatar(
+                                      user: user,
+                                      api: _mentionApi!,
                                     ),
                                     title: Text(
                                       '@$username',

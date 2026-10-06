@@ -1,0 +1,3 @@
+- Correcciones de fiabilidad para las llamadas y las notificaciones entrantes.
+- OneSignal vuelve a ser el proveedor de notificaciones predeterminado en la versión de Play Store.
+- Mejor visualización de perfiles en las menciones.

@@ -28,17 +28,20 @@ enum PushProvider {
   /// Indique si les services propriétaires (OneSignal / Google Play) sont autorisés
   static bool get isProprietaryPushSupported => !isFdroidBuild;
 
-  /// Provider par défaut à la compilation (configurable avec --dart-define=DEFAULT_PUSH_PROVIDER=onesignal)
+  /// Provider par défaut de la version Play Store. La variante F-Droid reste
+  /// forcée sur ntfy via [isFdroidBuild].
   static const String compileTimeDefault = String.fromEnvironment(
     'DEFAULT_PUSH_PROVIDER',
-    defaultValue: 'ntfy',
+    defaultValue: 'onesignal',
   );
 
   static PushProvider fromString(String? value) {
     if (isFdroidBuild) {
       return PushProvider.ntfy;
     }
-    final v = (value == null || value.trim().isEmpty) ? compileTimeDefault : value;
+    final v = (value == null || value.trim().isEmpty)
+        ? compileTimeDefault
+        : value;
     switch (v.toLowerCase().trim()) {
       case 'onesignal':
         return PushProvider.onesignal;
@@ -47,8 +50,10 @@ enum PushProvider {
       case 'none':
         return PushProvider.none;
       case 'ntfy':
+        return PushProvider.ntfy;
       default:
-        // Par défaut: ntfy (auto-hébergé, dégooglisé) ou valeur injectée à la compilation
+        // Revenir au provider par défaut de la variante si la valeur stockée
+        // est absente ou invalide.
         return compileTimeDefault == 'onesignal'
             ? PushProvider.onesignal
             : PushProvider.ntfy;
@@ -93,7 +98,7 @@ class NtfyPushService {
   String get serverUrl => _serverUrl;
   String get topicPrefix => _topicPrefix;
 
-  /// Récupère le provider de push configuré (défaut: ntfy)
+  /// Récupère le provider configuré (OneSignal sur Play Store, ntfy sur F-Droid).
   Future<PushProvider> getSelectedProvider() async {
     if (PushProvider.isFdroidBuild) {
       return PushProvider.ntfy;
@@ -123,7 +128,9 @@ class NtfyPushService {
       }
       return true;
     } catch (e) {
-      debugPrint('[NtfyPushService] Erreur lors de la demande de permission notifications: $e');
+      debugPrint(
+        '[NtfyPushService] Erreur lors de la demande de permission notifications: $e',
+      );
       return false;
     }
   }
@@ -138,7 +145,9 @@ class NtfyPushService {
     await requestNotificationPermission();
 
     if (_isRunning && _currentUserId == userId) {
-      debugPrint('[NtfyPushService] Déjà en cours d\'écoute pour userId: $userId');
+      debugPrint(
+        '[NtfyPushService] Déjà en cours d\'écoute pour userId: $userId',
+      );
       return;
     }
 
@@ -174,7 +183,10 @@ class NtfyPushService {
   }
 
   /// Envoie une notification de test directement sur le topic ntfy de l'utilisateur
-  Future<bool> sendTestPing({required int userId, String? customMessage}) async {
+  Future<bool> sendTestPing({
+    required int userId,
+    String? customMessage,
+  }) async {
     try {
       final topic = '$_topicPrefix$userId';
       final uri = Uri.parse('$_serverUrl/$topic');
@@ -185,7 +197,9 @@ class NtfyPushService {
           'Priority': '3',
           'Tags': 'bell,test',
         },
-        body: customMessage ?? 'Ceci est une notification de test ntfy reçue en direct ! ✊',
+        body:
+            customMessage ??
+            'Ceci est une notification de test ntfy reçue en direct ! ✊',
       );
       return res.statusCode >= 200 && res.statusCode < 300;
     } catch (e) {
@@ -212,35 +226,41 @@ class NtfyPushService {
     debugPrint('[NtfyPushService] Connexion WebSocket ntfy: $wsUrl');
 
     if (!kIsWeb) {
-      WebSocket.connect(wsUrl).then((ws) {
-        if (!_isRunning) {
-          ws.close();
-          return;
-        }
+      WebSocket.connect(wsUrl)
+          .then((ws) {
+            if (!_isRunning) {
+              ws.close();
+              return;
+            }
 
-        _webSocket = ws;
-        _isConnected = true;
-        _retryAttempt = 0;
-        debugPrint('[NtfyPushService] ✅ Connecté en WebSocket temps réel ($topic)');
-
-        _streamSub = ws
-            .map((e) => e.toString())
-            .listen(
-              (line) => _handleStreamLine(line),
-              onError: (e) {
-                debugPrint('[NtfyPushService] Erreur WebSocket: $e');
-                _scheduleReconnect();
-              },
-              onDone: () {
-                debugPrint('[NtfyPushService] WebSocket fermé');
-                _scheduleReconnect();
-              },
-              cancelOnError: true,
+            _webSocket = ws;
+            _isConnected = true;
+            _retryAttempt = 0;
+            debugPrint(
+              '[NtfyPushService] ✅ Connecté en WebSocket temps réel ($topic)',
             );
-      }).catchError((e) {
-        debugPrint('[NtfyPushService] Échec WebSocket ($e), bascule sur flux HTTP stream...');
-        _connectHttpStream(topic);
-      });
+
+            _streamSub = ws
+                .map((e) => e.toString())
+                .listen(
+                  (line) => _handleStreamLine(line),
+                  onError: (e) {
+                    debugPrint('[NtfyPushService] Erreur WebSocket: $e');
+                    _scheduleReconnect();
+                  },
+                  onDone: () {
+                    debugPrint('[NtfyPushService] WebSocket fermé');
+                    _scheduleReconnect();
+                  },
+                  cancelOnError: true,
+                );
+          })
+          .catchError((e) {
+            debugPrint(
+              '[NtfyPushService] Échec WebSocket ($e), bascule sur flux HTTP stream...',
+            );
+            _connectHttpStream(topic);
+          });
     } else {
       _connectHttpStream(topic);
     }
@@ -270,7 +290,9 @@ class NtfyPushService {
 
           _isConnected = true;
           _retryAttempt = 0;
-          debugPrint('[NtfyPushService] Connecté avec succès au flux HTTP ntfy ($topic)');
+          debugPrint(
+            '[NtfyPushService] Connecté avec succès au flux HTTP ntfy ($topic)',
+          );
 
           _streamSub = response.stream
               .transform(utf8.decoder)
@@ -326,7 +348,8 @@ class NtfyPushService {
     Map<String, dynamic> data = {};
 
     // 1. Depuis actions[0].extras
-    if (rawEvent['actions'] is List && (rawEvent['actions'] as List).isNotEmpty) {
+    if (rawEvent['actions'] is List &&
+        (rawEvent['actions'] as List).isNotEmpty) {
       final action = (rawEvent['actions'] as List).first;
       if (action is Map && action['extras'] is Map) {
         data = Map<String, dynamic>.from(action['extras']);
@@ -349,7 +372,9 @@ class NtfyPushService {
     }
 
     final type = data['type']?.toString();
-    debugPrint('[NtfyPushService] Notification ntfy reçue: type=$type title=$title');
+    debugPrint(
+      '[NtfyPushService] Notification ntfy reçue: type=$type title=$title',
+    );
 
     // ─── Appels entrants audio / vidéo ─────────────────────────────────────────
     if (type == 'call' || rawEvent['priority'] == 5) {
@@ -393,7 +418,9 @@ class NtfyPushService {
 
     _retryAttempt++;
     final seconds = (_retryAttempt * 2).clamp(2, 30);
-    debugPrint('[NtfyPushService] Reconnexion dans $seconds secondes (tentative $_retryAttempt)...');
+    debugPrint(
+      '[NtfyPushService] Reconnexion dans $seconds secondes (tentative $_retryAttempt)...',
+    );
 
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: seconds), () {
